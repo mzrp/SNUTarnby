@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACS - Web Answer</title>
+    <link rel="stylesheet" href="./app.css"/>
+    <script src="./app.js" defer></script> 
+</head>
+<body>
+    <div class="row-container">
+        <div class="first-row">
+
+            <button id="accept-call-button" type="button" style="float:left;"><img id="accept-call-button-image" src="hsgray.jpg"></button>
+            &nbsp;
+            <button id="hangup-call-button" type="button" style="float:left; margin-left:10px;"><img id="hangup-call-button-image" src="hshugray.jpg"></button>
+            &nbsp;
+
+            <!--
+            <input id="transfer-target-phone" type="text" disabled="true" placeholder="+451234..." />            
+            <button id="transfer-call-button" type="button" disabled="true">T</button>     
+            -->
+
+            <label id="connectedLabel" style="color: #13bb13; height: 40px; float:left; margin-left:10px; display: flex;
+            align-items: center;">
+                Acquiring token, please wait...
+            </label>
+
+        </div>
+
+        <iframe id="selvbetjeningfr" class="second-row" src="https://selvbetjening.nu/"></iframe>
+
+    </div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "name": "WebAnswer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:dev": "webpack-dev-server --config webpack.dev.js",
+    "build:prod": "webpack --config webpack.prod.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@microsoft/microsoft-graph-types": "^2.19.0",
+    "file-loader": "^6.2.0",
+    "webpack": "^4.42.0",
+    "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.10.3",
+    "webpack-merge": "^5.8.0"
+  },
+  "dependencies": {
+    "@azure/communication-calling": "^1.4.4",
+    "@azure/communication-common": "^2.0.0",
+    "@azure/communication-identity": "^1.0.0",
+    "@azure/identity": "^2.0.4",
+    "@azure/msal-node": "^1.8.0",
+    "@microsoft/microsoft-graph-client": "^3.0.2",
+    "axios": "^0.27.1",
+    "cors": "^2.8.5",
+    "fetch": "^1.1.0",
+    "https-proxy-agent": "^5.0.1",
+    "node-fetch": "^3.2.3"
+  }
+}
