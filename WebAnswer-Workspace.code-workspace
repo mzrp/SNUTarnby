@@ -5,6 +5,15 @@
 		},
 		{
 			"path": "..\\GetToken"
+		},
+		{
+			"path": "..\\..\\ACSVoIP\\WebCalling"
+		},
+		{
+			"path": "..\\..\\ACSVoIP\\GetToken"
+		},
+		{
+			"path": "..\\..\\ACSVoIP\\WebAnswer"
 		}
 	]
 }
