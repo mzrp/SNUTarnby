@@ -93,9 +93,9 @@ async function CreateInstance() {
 						
 						document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 						transferCallButton.disabled = true;
-						transferTargetPhone.disabled = true;		
+						transferTargetPhone.disabled = true;	
 						
-						document.getElementById("connectedLabel").innerHTML = "Environment is initiated!";
+						document.getElementById("connectedLabel").innerHTML = "Current call ended. Environment is initiated.";
 
 						try {
 							var infoMsg = `HangUp ${incomingCall.id} ${getFormattedDate()}`;
@@ -122,11 +122,13 @@ async function CreateInstance() {
 					var callToShow = callDisplayName;
 					if (callPhone != callDisplayName) 
 					{
-						callToShow += ", " + callPhone;
+						if (callPhone != undefined) {
+							callToShow += ", " + callPhone;
+						}
 					}
 	
 					// Get information about caller
-					callerInfo = callToShow + " (" + callKind + ")";
+					callerInfo = callToShow;// + " (" + callKind + ")";
 	
 					document.getElementById("accept-call-button-image").src="hsgr.jpg";
 					document.getElementById("hangup-call-button-image").src="hshugray.jpg";
@@ -191,6 +193,20 @@ acceptCallButton.onclick = async () => {
         call1 = await incomingCall.accept();
 
 		// const threadId = call.info.threadId;
+
+		var callKind = incomingCall.callerInfo.identifier.kind;
+		var callPhone = incomingCall.callerInfo.identifier.phoneNumber;
+		var callDisplayName = incomingCall.callerInfo.displayName;
+		
+		var callToShow = callDisplayName;
+		if (callPhone != callDisplayName) 
+		{
+			if (callPhone != undefined) {
+				callToShow += ", " + callPhone;
+			}
+		}
+
+		callerInfo = callToShow;// + " (" + callKind + ")";
 
 		callTransferApi1 = call1.feature(Features.Transfer);
 		callTransferApi1.on('transferRequested', args => {
@@ -275,6 +291,14 @@ transferCallButton.addEventListener("click", async () => {
 		transfer.on('stateChanged', async () => {
 			
 			document.getElementById("connectedLabel").innerHTML = "Transfer state: " + transfer.state;
+
+			if (transfer.state === 'Failed') {
+
+				document.getElementById("transfer-target-phone").value = "";
+				document.getElementById("transfer-call-button-image").src="hstgray.jpg";
+				transferCallButton.disabled = true;
+				transferTargetPhone.disabled = true;
+			}
 									
 			if (transfer.state === 'Transferred') {
 				document.getElementById("connectedLabel").innerHTML = "Call transfered to: " + transferTargetPhone.value;
@@ -282,6 +306,7 @@ transferCallButton.addEventListener("click", async () => {
 				// end the calls
 				await call1.hangUp();
 				
+				document.getElementById("transfer-target-phone").value = "";
 				document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 				transferCallButton.disabled = true;
 				transferTargetPhone.disabled = true;
@@ -359,6 +384,14 @@ transferCallButton.addEventListener("click", async () => {
 							transfer.on('stateChanged', async () => {
 							
 								document.getElementById("connectedLabel").innerHTML = "Transfer state: " + transfer.state;
+
+								if (transfer.state === 'Failed') {
+
+									document.getElementById("transfer-target-phone").value = "";
+									document.getElementById("transfer-call-button-image").src="hstgray.jpg";
+									transferCallButton.disabled = true;
+									transferTargetPhone.disabled = true;
+								}
 													
 								if (transfer.state === 'Transferred') {
 									document.getElementById("connectedLabel").innerHTML = "Call transfered to: " + transferTargetPhone.value;
@@ -366,6 +399,7 @@ transferCallButton.addEventListener("click", async () => {
 									// end the calls
 									await call1.hangUp();											
 							
+									document.getElementById("transfer-target-phone").value = "";
 									document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 									transferCallButton.disabled = true;
 									transferTargetPhone.disabled = true;
