@@ -25,6 +25,9 @@ document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 transferCallButton.disabled = true;
 transferTargetPhone.disabled = true;	
 
+sendPostMessage("idle");
+sendPostMessage("transferoff");
+
 // app objects
 let ACSToken;
 let ACSTokenExpires;
@@ -58,6 +61,21 @@ function getFormattedDate() {
     return d;
 }
 
+function sendPostMessage(pmsg) {
+
+	try {
+		var infoMsg = pmsg;
+		var childWindow = document.getElementById("selvbetjeningfr");
+		childWindow = childWindow ? childWindow.contentWindow : null;
+		childWindow.postMessage(infoMsg, "*");
+		console.log(infoMsg);
+	}
+	catch (error) {
+	   console.error(error);
+	}
+
+}
+
 // Create an instance of CallClient. Initialize a CallAgent instance with a CommunicationUserCredential via created CallClient. 
 async function CreateInstance() {
     try {
@@ -69,12 +87,16 @@ async function CreateInstance() {
 		document.getElementById("hangup-call-button-image").src="hshugray.jpg";
 		btnstatus = "00";
 
+		sendPostMessage("idle");
+
 		document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 		transferCallButton.disabled = true;
 		transferTargetPhone.disabled = true;
 
 		document.getElementById("connectedLabel").innerHTML = "Environment is initiated!";
-        
+		sendPostMessage("#INFO#Environment is initiated!");
+		sendPostMessage("transferoff");
+		        
 		// Set up a audio device to use.
         deviceManager = await callClient.getDeviceManager();
         await deviceManager.askDevicePermission({ audio: true });
@@ -90,23 +112,20 @@ async function CreateInstance() {
 						document.getElementById("accept-call-button-image").src="hsgray.jpg";
 						document.getElementById("hangup-call-button-image").src="hshugray.jpg";
 						btnstatus = "00";
+
+						sendPostMessage("idle");
 						
 						document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 						transferCallButton.disabled = true;
 						transferTargetPhone.disabled = true;	
+
+						sendPostMessage("transferoff");
 						
 						document.getElementById("connectedLabel").innerHTML = "Current call ended. Environment is initiated.";
+						sendPostMessage("#INFO#Current call ended. Environment is initiated.");
 
-						try {
-							var infoMsg = `HangUp ${incomingCall.id} ${getFormattedDate()}`;
-							console.log(infoMsg);
-							var childWindow = document.getElementById("selvbetjeningfr");
-							childWindow = childWindow ? childWindow.contentWindow : null;
-							childWindow.postMessage(infoMsg, "*");
-						}
-						catch (error) {
-						   console.error(error);
-						}
+						var infoMsg = `HangUp ${incomingCall.id} ${getFormattedDate()}`;
+						sendPostMessage("#MSG#" + infoMsg);
 
 						// stop ring tune
 						ringTone.pause();
@@ -133,18 +152,19 @@ async function CreateInstance() {
 					document.getElementById("accept-call-button-image").src="hsgr.jpg";
 					document.getElementById("hangup-call-button-image").src="hshugray.jpg";
 					btnstatus = "10";
+
+					sendPostMessage("callringing");
 					
 					document.getElementById("connectedLabel").innerHTML = "Ring... Ring... Incoming call from: " + callerInfo + ", Call Id: " + incomingCallId;
-								
+					sendPostMessage("#INFO#Ring... Ring... Incoming call from: " + callerInfo + ", Call Id: " + incomingCallId);
+
 					// play ring tune
 					ringTone.load();
 					ringTone.play(); 
 
 					var infoMsg = `Presented ${incomingCall.id} ${getFormattedDate()}`;
-					console.log(infoMsg);
-					var childWindow = document.getElementById("selvbetjeningfr");
-					childWindow = childWindow ? childWindow.contentWindow : null;
-					childWindow.postMessage(infoMsg, "*");
+					sendPostMessage("#MSG#" + infoMsg);
+
             } catch (error) {
                 console.error(error);
             }
@@ -159,6 +179,7 @@ const queryString = window.location.search;
 if ((queryString == null) || (queryString == "")) 
 {
 	document.getElementById("connectedLabel").innerHTML = "Acquiring token, please wait...";
+	sendPostMessage("#INFO#Acquiring token, please wait...");
 	window.location.href = "https://wagettoken.azurewebsites.net/";
 }
 
@@ -166,11 +187,13 @@ const urlParams = new URLSearchParams(queryString);
 if ((urlParams == null) || (urlParams == "")) 
 {
 	document.getElementById("connectedLabel").innerHTML = "Acquiring token, please wait...";
+	sendPostMessage("#INFO#Acquiring token, please wait...");
 	window.location.href = "https://wagettoken.azurewebsites.net/";
 }
 else 
 {
 	document.getElementById("connectedLabel").innerHTML = "Initiating environment, please wait...";
+	sendPostMessage("#INFO#Acquiring token, please wait...");
 	ACSToken = urlParams.get('token');
 	ACSTokenExpires = urlParams.get('expires');
 
@@ -182,9 +205,7 @@ else
     CreateInstance();
 }
 
-// Accepting an incoming call
-acceptCallButton.onclick = async () => {
-
+async function goAcceptTheCall() {
 	if (btnstatus != "10") {
 		return;
 	}
@@ -221,9 +242,13 @@ acceptCallButton.onclick = async () => {
 		document.getElementById("hangup-call-button-image").src="hshured.jpg";
 		btnstatus = "01";
 
+		sendPostMessage("callactive");
+
 		document.getElementById("transfer-call-button-image").src="hstgr.jpg";
 		transferCallButton.disabled = false;
 		transferTargetPhone.disabled = false;
+
+		sendPostMessage("transferon");
 
 		var vThreadIdInfo = "";
 		if (call1.info.threadId != undefined) {
@@ -231,21 +256,25 @@ acceptCallButton.onclick = async () => {
 		}
 		
 		document.getElementById("connectedLabel").innerHTML = "Connected to: " + callerInfo + ", Call Id: " + incomingCallId + vThreadIdInfo;
+		sendPostMessage("#INFO#Connected to: " + callerInfo + ", Call Id: " + incomingCallId + vThreadIdInfo);
 
 		var infoMsg = `PickedUp ${incomingCall.id} ${getFormattedDate()}`;
-		console.log(infoMsg);
-		var childWindow = document.getElementById("selvbetjeningfr");
-		childWindow = childWindow ? childWindow.contentWindow : null;
-		childWindow.postMessage(infoMsg, "*");
+		sendPostMessage("#MSG#" + infoMsg);
 				
     } catch (error) {
         console.error(error);
     }
+
 }
 
-// End the current call
-hangUpCallButton.addEventListener("click", async () => {
+// Accepting an incoming call
+acceptCallButton.onclick = async () => {
 
+	goAcceptTheCall();
+	
+}
+
+async function goHangUp() {
 	if (btnstatus != "01") {
 		return;
 	}
@@ -254,31 +283,59 @@ hangUpCallButton.addEventListener("click", async () => {
     await call1.hangUp();
 	
 	 document.getElementById("connectedLabel").innerHTML = "Environment is initiated!";
+	 sendPostMessage("#INFO#Environment is initiated!");
 
 	 document.getElementById("accept-call-button-image").src="hsgray.jpg";
 	 document.getElementById("hangup-call-button-image").src="hsupgray.jpg";
 	 btnstatus = "00";
 
+	 sendPostMessage("idle");
+
 	 document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 	 transferCallButton.disabled = true;
 	 transferTargetPhone.disabled = true;
 
-	 try {
-	 	var infoMsg = `HangUp ${incomingCall.id} ${getFormattedDate()}`;
-	 	console.log(infoMsg);
-	 	var childWindow = document.getElementById("selvbetjeningfr");
-	 	childWindow = childWindow ? childWindow.contentWindow : null;
-	 	childWindow.postMessage(infoMsg, "*");
-	 }
-	 catch (error) {
-		console.error(error);
-	 }
+	 sendPostMessage("transferoff");
+
+	 var infoMsg = `HangUp ${incomingCall.id} ${getFormattedDate()}`;
+	 sendPostMessage("#MSG#" + infoMsg);
+}
+
+// End the current call
+hangUpCallButton.addEventListener("click", async () => {
+
+	goHangUp();
+
+});
+
+window.addEventListener("message", (e) => {
+	if (e.data != undefined) {
+		if (e.data != "") {
+			if (e.data.indexOf("#TRANSFER#") != -1) {
+				var targetphoneframe = e.data.replace("#TRANSFER#", "")
+				transferTargetPhone.value = targetphoneframe;
+				goMakeTransfer();
+			}
+			if (e.data.indexOf("#PICKUP#") != -1) {
+				goAcceptTheCall();
+			}
+			if (e.data.indexOf("#HANGUP#") != -1) {
+				goHangUp();
+			}
+		}
+	}
 });
 
 // transfer current call
 transferCallButton.addEventListener("click", async () => {
 
+	goMakeTransfer();
+	
+});
+
+async function goMakeTransfer() {
 	document.getElementById("connectedLabel").innerHTML = "Initiating transfer. Please wait..";
+	sendPostMessage("#INFO#Initiating transfer. Please wait..")
 
 	if (transferTargetPhone.value.indexOf("+") == 0) {
 
@@ -291,6 +348,7 @@ transferCallButton.addEventListener("click", async () => {
 		transfer.on('stateChanged', async () => {
 			
 			document.getElementById("connectedLabel").innerHTML = "Transfer state: " + transfer.state;
+			sendPostMessage("#INFO#Transfer state: " + transfer.state)
 
 			if (transfer.state === 'Failed') {
 
@@ -298,11 +356,14 @@ transferCallButton.addEventListener("click", async () => {
 				document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 				transferCallButton.disabled = true;
 				transferTargetPhone.disabled = true;
+
+				sendPostMessage("transferoff");
 			}
 									
 			if (transfer.state === 'Transferred') {
 				document.getElementById("connectedLabel").innerHTML = "Call transfered to: " + transferTargetPhone.value;
-		
+				sendPostMessage("#INFO#Call transfered to: " + transferTargetPhone.value)
+
 				// end the calls
 				await call1.hangUp();
 				
@@ -310,6 +371,9 @@ transferCallButton.addEventListener("click", async () => {
 				document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 				transferCallButton.disabled = true;
 				transferTargetPhone.disabled = true;
+
+				var infoMsg = `Transferred ${incomingCall.id} ${getFormattedDate()}`;
+				sendPostMessage("#MSG#" + infoMsg);
 						   
 			}
 		});
@@ -333,10 +397,13 @@ transferCallButton.addEventListener("click", async () => {
 			const content = await rawResponse.json();
 			vAppToken = content.result;
 			document.getElementById("connectedLabel").innerHTML = "Token acquired.";
+			sendPostMessage("#INFO#Token acquired.")
+			
 		}
 		catch (error) {
 			console.error(error);
 			document.getElementById("connectedLabel").innerHTML = error;
+			sendPostMessage("#INFO#" + error)
 			vAppToken = "n/a";
 	 	}
 
@@ -344,6 +411,8 @@ transferCallButton.addEventListener("click", async () => {
 			if (vAppToken != "n/a") {
 
 				document.getElementById("connectedLabel").innerHTML = "Creating transfering group.";
+				sendPostMessage("#INFO#Creating transfering group.")
+
 				var url2 = "https://wagettoken.azurewebsites.net/getThreadId?appToken=" + vAppToken + "&userid=" + TeamsUserId;
 
 				var vThreadId = "n/a";
@@ -352,10 +421,12 @@ transferCallButton.addEventListener("click", async () => {
 					const content2 = await rawResponse2.json();
 					vThreadId = content2.result;
 					document.getElementById("connectedLabel").innerHTML = "Group created.";
+					sendPostMessage("#INFO#Group created.")
 				}
 				catch (error) {
 					console.error(error);
 					document.getElementById("connectedLabel").innerHTML = error;
+					sendPostMessage("#INFO#" + error)
 					vThreadId = "n/a";
 				}
 
@@ -365,9 +436,12 @@ transferCallButton.addEventListener("click", async () => {
 						await call1.hold();
 
 						document.getElementById("connectedLabel").innerHTML = "Calling " + transferTargetPhone.value + ", ThreadId: " + vThreadId;
-					
+						sendPostMessage("#INFO#Calling " + transferTargetPhone.value + ", ThreadId: " + vThreadId);
+
 						// email
 						document.getElementById("connectedLabel").innerHTML = "Getting user id.";
+						sendPostMessage("#INFO#Getting user id.");
+
 						var url3 = "https://wagettoken.azurewebsites.net/getUserId?appToken=" + vAppToken + "&useremail=" + transferTargetPhone.value;
 															
 						var vUserId = "n/a";
@@ -376,6 +450,7 @@ transferCallButton.addEventListener("click", async () => {
 							const content3 = await rawResponse3.json();
 							vUserId = content3.result;
 							document.getElementById("connectedLabel").innerHTML = "User id found.";
+							sendPostMessage("#INFO#User id found.");
 											
 							const userCallee = { microsoftTeamsUserId: vUserId };
 							//call2 = callAgent.startCall([userCallee], { threadId: vThreadId });
@@ -384,6 +459,7 @@ transferCallButton.addEventListener("click", async () => {
 							transfer.on('stateChanged', async () => {
 							
 								document.getElementById("connectedLabel").innerHTML = "Transfer state: " + transfer.state;
+								sendPostMessage("#INFO#Transfer state: " + transfer.state);
 
 								if (transfer.state === 'Failed') {
 
@@ -395,7 +471,8 @@ transferCallButton.addEventListener("click", async () => {
 													
 								if (transfer.state === 'Transferred') {
 									document.getElementById("connectedLabel").innerHTML = "Call transfered to: " + transferTargetPhone.value;
-						
+									sendPostMessage("#INFO#Call transfered to: " + transferTargetPhone.value);
+
 									// end the calls
 									await call1.hangUp();											
 							
@@ -410,25 +487,33 @@ transferCallButton.addEventListener("click", async () => {
 						catch (error) {
 							console.error(error);
 							document.getElementById("connectedLabel").innerHTML = error;
+							sendPostMessage("#INFO#" + error);
 							vThreadId = "n/a";
 						}						
 					}
 					else {
 						document.getElementById("connectedLabel").innerHTML = "Group failed to be created.";
+						sendPostMessage("#INFO#Group failed to be created.");
 					}
 				} 
 				else {
 					document.getElementById("connectedLabel").innerHTML = "Group failed to be created.";
+					sendPostMessage("#INFO#Group failed to be created.");
 				}
 			}
 			else {
 				document.getElementById("connectedLabel").innerHTML = "Token failed to be created.";
+				sendPostMessage("#INFO#Token failed to be created.");
 			}
 		}
 		else {
 			document.getElementById("connectedLabel").innerHTML = "Token failed to be created.";
+			sendPostMessage("#INFO#Token failed to be created.");
 		}
 	}
-});
+
+}
+
+
 
 
