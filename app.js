@@ -25,8 +25,15 @@ document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 transferCallButton.disabled = true;
 transferTargetPhone.disabled = true;	
 
-sendPostMessage("idle");
-sendPostMessage("transferoff");
+var actionMsg = {};
+var infoMsg = {};
+var messageMsg = {};
+
+actionMsg = {type: "action", command: "idle", datetime: getFormattedDate()};
+sendPostMessage(actionMsg);
+
+actionMsg = {type: "action", command: "transferoff", datetime: getFormattedDate()};
+sendPostMessage(actionMsg);
 
 // app objects
 let ACSToken;
@@ -87,15 +94,19 @@ async function CreateInstance() {
 		document.getElementById("hangup-call-button-image").src="hshugray.jpg";
 		btnstatus = "00";
 
-		sendPostMessage("idle");
+		actionMsg = {type: "action", command: "idle", datetime: getFormattedDate()};
+		sendPostMessage(actionMsg);
 
 		document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 		transferCallButton.disabled = true;
 		transferTargetPhone.disabled = true;
 
 		document.getElementById("connectedLabel").innerHTML = "Environment is initiated!";
-		sendPostMessage("#INFO#Environment is initiated!");
-		sendPostMessage("transferoff");
+		infoMsg = {type: "info", message: "Environment is initiated!", datetime: getFormattedDate()};
+		sendPostMessage(infoMsg);
+
+		actionMsg = {type: "action", command: "transferoff", datetime: getFormattedDate()};
+		sendPostMessage(actionMsg);
 		        
 		// Set up a audio device to use.
         deviceManager = await callClient.getDeviceManager();
@@ -113,19 +124,22 @@ async function CreateInstance() {
 						document.getElementById("hangup-call-button-image").src="hshugray.jpg";
 						btnstatus = "00";
 
-						sendPostMessage("idle");
+						actionMsg = {type: "action", command: "idle", datetime: getFormattedDate()};
+						sendPostMessage(actionMsg);
 						
 						document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 						transferCallButton.disabled = true;
 						transferTargetPhone.disabled = true;	
 
-						sendPostMessage("transferoff");
+						actionMsg = {type: "action", command: "transferoff", datetime: getFormattedDate()};
+						sendPostMessage(actionMsg);
 						
 						document.getElementById("connectedLabel").innerHTML = "Current call ended. Environment is initiated.";
-						sendPostMessage("#INFO#Current call ended. Environment is initiated.");
+						infoMsg = {type: "info", message: "Current call ended. Environment is initiated.", datetime: getFormattedDate()};
+						sendPostMessage(infoMsg);
 
-						var infoMsg = `HangUp ${incomingCall.id} ${getFormattedDate()}`;
-						sendPostMessage("#MSG#" + infoMsg);
+						infoMsg = {type: "message", status: "HangUp", callid: incomingCall.id, datetime: getFormattedDate()};
+						sendPostMessage(infoMsg);
 
 						// stop ring tune
 						ringTone.pause();
@@ -152,18 +166,20 @@ async function CreateInstance() {
 					document.getElementById("accept-call-button-image").src="hsgr.jpg";
 					document.getElementById("hangup-call-button-image").src="hshugray.jpg";
 					btnstatus = "10";
-
-					sendPostMessage("callringing");
+					
+					actionMsg = {type: "action", command: "callringing", datetime: getFormattedDate()};
+					sendPostMessage(actionMsg);
 					
 					document.getElementById("connectedLabel").innerHTML = "Ring... Ring... Incoming call from: " + callerInfo + ", Call Id: " + incomingCallId;
-					sendPostMessage("#INFO#Ring... Ring... Incoming call from: " + callerInfo + ", Call Id: " + incomingCallId);
+					infoMsg = {type: "info", message: "Ring... Ring... Incoming call from: " + callerInfo + ", Call Id: " + incomingCallId, datetime: getFormattedDate()};
+					sendPostMessage(infoMsg);
 
 					// play ring tune
 					ringTone.load();
 					ringTone.play(); 
 
-					var infoMsg = `Presented ${incomingCall.id} ${getFormattedDate()}`;
-					sendPostMessage("#MSG#" + infoMsg);
+					messageMsg = {type: "message", status: "Presented", callid: incomingCall.id, datetime: getFormattedDate()};
+					sendPostMessage(messageMsg);
 
             } catch (error) {
                 console.error(error);
@@ -179,7 +195,10 @@ const queryString = window.location.search;
 if ((queryString == null) || (queryString == "")) 
 {
 	document.getElementById("connectedLabel").innerHTML = "Acquiring token, please wait...";
-	sendPostMessage("#INFO#Acquiring token, please wait...");
+	infoMsg = {type: "info", message: "Acquiring token, please wait...", datetime: getFormattedDate()};
+	sendPostMessage(infoMsg);
+
+	//window.location.href = "https://waframegettoken.azurewebsites.net/";
 	window.location.href = "https://wagettoken.azurewebsites.net/";
 }
 
@@ -187,13 +206,18 @@ const urlParams = new URLSearchParams(queryString);
 if ((urlParams == null) || (urlParams == "")) 
 {
 	document.getElementById("connectedLabel").innerHTML = "Acquiring token, please wait...";
-	sendPostMessage("#INFO#Acquiring token, please wait...");
+	infoMsg = {type: "info", message: "Acquiring token, please wait...", datetime: getFormattedDate()};
+	sendPostMessage(infoMsg);
+
+	//window.location.href = "https://waframegettoken.azurewebsites.net/";
 	window.location.href = "https://wagettoken.azurewebsites.net/";
 }
 else 
 {
 	document.getElementById("connectedLabel").innerHTML = "Initiating environment, please wait...";
-	sendPostMessage("#INFO#Acquiring token, please wait...");
+	infoMsg = {type: "info", message: "Initiating environment, please wait...", datetime: getFormattedDate()};
+	sendPostMessage(infoMsg);
+
 	ACSToken = urlParams.get('token');
 	ACSTokenExpires = urlParams.get('expires');
 
@@ -242,13 +266,15 @@ async function goAcceptTheCall() {
 		document.getElementById("hangup-call-button-image").src="hshured.jpg";
 		btnstatus = "01";
 
-		sendPostMessage("callactive");
+		actionMsg = {type: "action", command: "callactive", datetime: getFormattedDate()};
+		sendPostMessage(actionMsg);
 
 		document.getElementById("transfer-call-button-image").src="hstgr.jpg";
 		transferCallButton.disabled = false;
 		transferTargetPhone.disabled = false;
 
-		sendPostMessage("transferon");
+		actionMsg = {type: "action", command: "transferon", datetime: getFormattedDate()};
+		sendPostMessage(actionMsg);
 
 		var vThreadIdInfo = "";
 		if (call1.info.threadId != undefined) {
@@ -256,10 +282,11 @@ async function goAcceptTheCall() {
 		}
 		
 		document.getElementById("connectedLabel").innerHTML = "Connected to: " + callerInfo + ", Call Id: " + incomingCallId + vThreadIdInfo;
-		sendPostMessage("#INFO#Connected to: " + callerInfo + ", Call Id: " + incomingCallId + vThreadIdInfo);
-
-		var infoMsg = `PickedUp ${incomingCall.id} ${getFormattedDate()}`;
-		sendPostMessage("#MSG#" + infoMsg);
+		infoMsg = {type: "info", message: "Connected to: " + callerInfo + ", Call Id: " + incomingCallId + vThreadIdInfo, datetime: getFormattedDate()};
+		sendPostMessage(infoMsg);
+	
+		messageMsg = {type: "message", status: "PickedUp", callid: incomingCall.id, datetime: getFormattedDate()};
+		sendPostMessage(messageMsg);
 				
     } catch (error) {
         console.error(error);
@@ -283,22 +310,25 @@ async function goHangUp() {
     await call1.hangUp();
 	
 	 document.getElementById("connectedLabel").innerHTML = "Environment is initiated!";
-	 sendPostMessage("#INFO#Environment is initiated!");
+	 infoMsg = {type: "info", message: "Environment is initiated!", datetime: getFormattedDate()};
+	 sendPostMessage(infoMsg);
 
 	 document.getElementById("accept-call-button-image").src="hsgray.jpg";
 	 document.getElementById("hangup-call-button-image").src="hsupgray.jpg";
 	 btnstatus = "00";
 
-	 sendPostMessage("idle");
+	 actionMsg = {type: "action", command: "idle", datetime: getFormattedDate()};
+	 sendPostMessage(actionMsg);
 
 	 document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 	 transferCallButton.disabled = true;
 	 transferTargetPhone.disabled = true;
 
-	 sendPostMessage("transferoff");
+	 actionMsg = {type: "action", command: "transferoff", datetime: getFormattedDate()};
+	 sendPostMessage(actionMsg);
 
-	 var infoMsg = `HangUp ${incomingCall.id} ${getFormattedDate()}`;
-	 sendPostMessage("#MSG#" + infoMsg);
+	 messageMsg = {type: "message", status: "HangUp", callid: incomingCall.id, datetime: getFormattedDate()};
+	 sendPostMessage(messageMsg);
 }
 
 // End the current call
@@ -311,15 +341,14 @@ hangUpCallButton.addEventListener("click", async () => {
 window.addEventListener("message", (e) => {
 	if (e.data != undefined) {
 		if (e.data != "") {
-			if (e.data.indexOf("#TRANSFER#") != -1) {
-				var targetphoneframe = e.data.replace("#TRANSFER#", "")
-				transferTargetPhone.value = targetphoneframe;
+			if (e.data.command == "TRANSFER") {
+				transferTargetPhone.value = e.data.phone;
 				goMakeTransfer();
 			}
-			if (e.data.indexOf("#PICKUP#") != -1) {
+			if (e.data.command == "PICKUP") {
 				goAcceptTheCall();
 			}
-			if (e.data.indexOf("#HANGUP#") != -1) {
+			if (e.data.command == "HANGUP") {
 				goHangUp();
 			}
 		}
@@ -335,7 +364,8 @@ transferCallButton.addEventListener("click", async () => {
 
 async function goMakeTransfer() {
 	document.getElementById("connectedLabel").innerHTML = "Initiating transfer. Please wait..";
-	sendPostMessage("#INFO#Initiating transfer. Please wait..")
+	infoMsg = {type: "info", message: "Initiating transfer. Please wait..", datetime: getFormattedDate()};
+	sendPostMessage(infoMsg);
 
 	if (transferTargetPhone.value.indexOf("+") == 0) {
 
@@ -348,22 +378,29 @@ async function goMakeTransfer() {
 		transfer.on('stateChanged', async () => {
 			
 			document.getElementById("connectedLabel").innerHTML = "Transfer state: " + transfer.state;
-			sendPostMessage("#INFO#Transfer state: " + transfer.state)
-
+			infoMsg = {type: "info", message: "Transfer state: " + transfer.state, datetime: getFormattedDate()};
+			sendPostMessage(infoMsg);
+		
 			if (transfer.state === 'Failed') {
+
+				document.getElementById("connectedLabel").innerHTML = "Transfer failed.";
+				infoMsg = {type: "info", message: "Transfer failed.", datetime: getFormattedDate()};
+				sendPostMessage(infoMsg);
 
 				document.getElementById("transfer-target-phone").value = "";
 				document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 				transferCallButton.disabled = true;
 				transferTargetPhone.disabled = true;
 
-				sendPostMessage("transferoff");
+				actionMsg = {type: "action", command: "transferoff", datetime: getFormattedDate()};
+				sendPostMessage(actionMsg);
 			}
 									
 			if (transfer.state === 'Transferred') {
 				document.getElementById("connectedLabel").innerHTML = "Call transfered to: " + transferTargetPhone.value;
-				sendPostMessage("#INFO#Call transfered to: " + transferTargetPhone.value)
-
+				infoMsg = {type: "info", message: "Call transfered to: " + transferTargetPhone.value, datetime: getFormattedDate()};
+				sendPostMessage(infoMsg);
+	
 				// end the calls
 				await call1.hangUp();
 				
@@ -372,8 +409,8 @@ async function goMakeTransfer() {
 				transferCallButton.disabled = true;
 				transferTargetPhone.disabled = true;
 
-				var infoMsg = `Transferred ${incomingCall.id} ${getFormattedDate()}`;
-				sendPostMessage("#MSG#" + infoMsg);
+				messageMsg = {type: "message", status: "Transferred", callid: incomingCall.id, datetime: getFormattedDate()};
+				sendPostMessage(messageMsg);
 						   
 			}
 		});
@@ -389,6 +426,7 @@ async function goMakeTransfer() {
 			redirect: 'follow'
 	  	};
 
+		//var url = "https://waframegettoken.azurewebsites.net/getAppToken";
 		var url = "https://wagettoken.azurewebsites.net/getAppToken";
 
 		var vAppToken = "n/a";
@@ -397,13 +435,15 @@ async function goMakeTransfer() {
 			const content = await rawResponse.json();
 			vAppToken = content.result;
 			document.getElementById("connectedLabel").innerHTML = "Token acquired.";
-			sendPostMessage("#INFO#Token acquired.")
-			
+			infoMsg = {type: "info", message: "Token acquired.", datetime: getFormattedDate()};
+			sendPostMessage(infoMsg);			
 		}
 		catch (error) {
 			console.error(error);
 			document.getElementById("connectedLabel").innerHTML = error;
-			sendPostMessage("#INFO#" + error)
+			infoMsg = {type: "info", message: error, datetime: getFormattedDate()};
+			sendPostMessage(infoMsg);
+
 			vAppToken = "n/a";
 	 	}
 
@@ -411,8 +451,10 @@ async function goMakeTransfer() {
 			if (vAppToken != "n/a") {
 
 				document.getElementById("connectedLabel").innerHTML = "Creating transfering group.";
-				sendPostMessage("#INFO#Creating transfering group.")
+				infoMsg = {type: "info", message: "Creating transfering group.", datetime: getFormattedDate()};
+				sendPostMessage(infoMsg);
 
+				//var url2 = "https://waframegettoken.azurewebsites.net/getThreadId?appToken=" + vAppToken + "&userid=" + TeamsUserId;
 				var url2 = "https://wagettoken.azurewebsites.net/getThreadId?appToken=" + vAppToken + "&userid=" + TeamsUserId;
 
 				var vThreadId = "n/a";
@@ -421,12 +463,14 @@ async function goMakeTransfer() {
 					const content2 = await rawResponse2.json();
 					vThreadId = content2.result;
 					document.getElementById("connectedLabel").innerHTML = "Group created.";
-					sendPostMessage("#INFO#Group created.")
+					infoMsg = {type: "info", message: "Group created.", datetime: getFormattedDate()};
+					sendPostMessage(infoMsg);
 				}
 				catch (error) {
 					console.error(error);
 					document.getElementById("connectedLabel").innerHTML = error;
-					sendPostMessage("#INFO#" + error)
+					infoMsg = {type: "info", message: error, datetime: getFormattedDate()};
+					sendPostMessage(infoMsg);
 					vThreadId = "n/a";
 				}
 
@@ -436,12 +480,15 @@ async function goMakeTransfer() {
 						await call1.hold();
 
 						document.getElementById("connectedLabel").innerHTML = "Calling " + transferTargetPhone.value + ", ThreadId: " + vThreadId;
-						sendPostMessage("#INFO#Calling " + transferTargetPhone.value + ", ThreadId: " + vThreadId);
-
+						infoMsg = {type: "info", message: "Calling " + transferTargetPhone.value + ", ThreadId: " + vThreadId, datetime: getFormattedDate()};
+						sendPostMessage(infoMsg);
+	
 						// email
 						document.getElementById("connectedLabel").innerHTML = "Getting user id.";
-						sendPostMessage("#INFO#Getting user id.");
+						infoMsg = {type: "info", message: "Getting user id.", datetime: getFormattedDate()};
+						sendPostMessage(infoMsg);
 
+						//var url3 = "https://waframegettoken.azurewebsites.net/getUserId?appToken=" + vAppToken + "&useremail=" + transferTargetPhone.value;
 						var url3 = "https://wagettoken.azurewebsites.net/getUserId?appToken=" + vAppToken + "&useremail=" + transferTargetPhone.value;
 															
 						var vUserId = "n/a";
@@ -450,8 +497,9 @@ async function goMakeTransfer() {
 							const content3 = await rawResponse3.json();
 							vUserId = content3.result;
 							document.getElementById("connectedLabel").innerHTML = "User id found.";
-							sendPostMessage("#INFO#User id found.");
-											
+							infoMsg = {type: "info", message: "User id found.", datetime: getFormattedDate()};
+							sendPostMessage(infoMsg);
+			
 							const userCallee = { microsoftTeamsUserId: vUserId };
 							//call2 = callAgent.startCall([userCallee], { threadId: vThreadId });
 					
@@ -459,10 +507,13 @@ async function goMakeTransfer() {
 							transfer.on('stateChanged', async () => {
 							
 								document.getElementById("connectedLabel").innerHTML = "Transfer state: " + transfer.state;
-								sendPostMessage("#INFO#Transfer state: " + transfer.state);
-
+								infoMsg = {type: "info", message: "Transfer state: " + transfer.state, datetime: getFormattedDate()};
+								sendPostMessage(infoMsg);
+	
 								if (transfer.state === 'Failed') {
-
+									document.getElementById("connectedLabel").innerHTML = "Transfer failed.";
+									infoMsg = {type: "info", message: "Transfer failed.", datetime: getFormattedDate()};
+									sendPostMessage(infoMsg);
 									document.getElementById("transfer-target-phone").value = "";
 									document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 									transferCallButton.disabled = true;
@@ -471,7 +522,8 @@ async function goMakeTransfer() {
 													
 								if (transfer.state === 'Transferred') {
 									document.getElementById("connectedLabel").innerHTML = "Call transfered to: " + transferTargetPhone.value;
-									sendPostMessage("#INFO#Call transfered to: " + transferTargetPhone.value);
+									infoMsg = {type: "info", message: "Call transfered to: " + transferTargetPhone.value, datetime: getFormattedDate()};
+									sendPostMessage(infoMsg);
 
 									// end the calls
 									await call1.hangUp();											
@@ -487,28 +539,36 @@ async function goMakeTransfer() {
 						catch (error) {
 							console.error(error);
 							document.getElementById("connectedLabel").innerHTML = error;
-							sendPostMessage("#INFO#" + error);
+							infoMsg = {type: "info", message: error, datetime: getFormattedDate()};
+							sendPostMessage(infoMsg);
+
 							vThreadId = "n/a";
 						}						
 					}
 					else {
 						document.getElementById("connectedLabel").innerHTML = "Group failed to be created.";
-						sendPostMessage("#INFO#Group failed to be created.");
+						infoMsg = {type: "info", message: "Group failed to be created.", datetime: getFormattedDate()};
+						sendPostMessage(infoMsg);
+
 					}
 				} 
 				else {
 					document.getElementById("connectedLabel").innerHTML = "Group failed to be created.";
-					sendPostMessage("#INFO#Group failed to be created.");
+					infoMsg = {type: "info", message: "Group failed to be created.", datetime: getFormattedDate()};
+					sendPostMessage(infoMsg);
+
 				}
 			}
 			else {
 				document.getElementById("connectedLabel").innerHTML = "Token failed to be created.";
-				sendPostMessage("#INFO#Token failed to be created.");
+				infoMsg = {type: "info", message: "Token failed to be created.", datetime: getFormattedDate()};
+				sendPostMessage(infoMsg);
 			}
 		}
 		else {
 			document.getElementById("connectedLabel").innerHTML = "Token failed to be created.";
-			sendPostMessage("#INFO#Token failed to be created.");
+			infoMsg = {type: "info", message: "Token failed to be created.", datetime: getFormattedDate()};
+			sendPostMessage(infoMsg);
 		}
 	}
 

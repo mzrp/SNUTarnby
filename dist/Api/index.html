@@ -4,7 +4,7 @@
 <script>
 
 	function sendPostMessage(pmsg) {
-	   if ((pmsg.indexOf("#HANGUP#") != -1) || (pmsg.indexOf("#TRANSFER#") != -1)) {
+	   if ((pmsg.command == "HANGUP") || (pmsg.command == "TRANSFER")) {
 	     if (document.getElementById("callstate").value == "callactive") {
 		try {
 			var infoMsg = pmsg;
@@ -20,7 +20,7 @@
 	   	}
 	   }
 
-	   if (pmsg.indexOf("#PICKUP#") != -1) {
+	   if (pmsg.command == "PICKUP") {
 	     if (document.getElementById("callstate").value == "callringing") {
 		try {
 			var infoMsg = pmsg;
@@ -47,13 +47,16 @@
 
 <br /><br />
 
-<button id="pickup-call-button" type="button" disabled="true" style="margin-left:10px;" onclick="sendPostMessage('#PICKUP#');">Pick Up</button> 
+<button id="pickup-call-button" type="button" disabled="true" style="margin-left:10px;" onclick="sendPostMessage({command: 'PICKUP'});">Pick Up</button> 
 &nbsp;
-<button id="hangup-call-button" type="button" disabled="true" onclick="sendPostMessage('#HANGUP#');">Hang Up</button> 
+<button id="hangup-call-button" type="button" disabled="true" onclick="sendPostMessage({command: 'HANGUP'});">Hang Up</button> 
 
 <br />
 
-<p id="transfer-target-phone" style="color: #777777; align-items: center; margin-left:10px; cursor: pointer" onclick="sendPostMessage('#TRANSFER#+4527124010');">Transfer call to +4527124010</p>
+<p id="transfer-target-phone" style="color: #777777; align-items: center; margin-left:10px; cursor: pointer" onclick="sendPostMessage({command: 'TRANSFER', phone: '+4527124010'});">Transfer call to +4527124010</p>
+<!--
+<p id="transfer-target-phone" style="color: #777777; align-items: center; margin-left:10px; cursor: pointer" onclick="sendPostMessage({command: 'TRANSFER', phone: '+4532420949'});">Transfer call to +4532420949</p>
+-->
 
 <label id="connectedLabel" style="color: #999999; align-items: center; margin-left:10px;">Post messages info</label>
 
@@ -63,30 +66,30 @@
 
 Following post messages can be sent to ACS frame:
 
-#PICKUP#
+{command: 'PICKUP'}
 Post message to ACS frame to answer the call.
 
-#HANGUP#
+{command: 'HANGUP'}
 Post message to ACS frame to hangup the call.
 
-#TRANSFER#<phone number>
-Post message to ACS frame to transfer active call (i.e. #TRANSFER#+4527124010).
+{command: 'TRANSFER', phone: 'phone number'}
+Post message to ACS frame to transfer active call (i.e. {command: 'TRANSFER', phone: '+4527124010'}).
 
 ACS frame is sending these messages to the child frame:
 
-transferoff
+{type: "action", command: "transferoff", datetime: "actiondatetime"}
 Indicates that there is no active call so transfer should not be initiated.
 
-transferon
+{type: "action", command: "transferon", datetime: "actiondatetime"}
 Active call is in progress. Transfer is allowed.
 
-callringing
-Indicates incoming call. It is now allowed to send #PICKUP# message.
+{type: "action", command: "callringing", datetime: "actiondatetime"}
+Indicates incoming call. It is now allowed to send PICKUP command.
 
-callactive
-Current call is in progress. It can be used to enable hangup button which can send #HANGUP# message or to transfer the call.
+{type: "action", command: "callactive", datetime: "actiondatetime"}
+Current call is in progress. It can be used to enable hangup button which can send HANGUP command or to transfer the call.
 
-idle
+{type: "action", command: "idle", datetime: "actiondatetime"}
 No calls in progress. It can be used to disable all the buttons.
 
 </pre>
@@ -99,38 +102,40 @@ No calls in progress. It can be used to disable all the buttons.
 	window.addEventListener("message", (e) => {
 		var data = e.data;
 
-		if (data == "transferoff") {
-			document.getElementById("transfer-target-phone").style.color = "#777777";
+		if (data.type == "action") {
+			if (data.command == "transferoff") {
+				document.getElementById("transfer-target-phone").style.color = "#777777";
+			}
+
+			if (data.command == "transferon") {
+				document.getElementById("transfer-target-phone").style.color = "#13bb13";
+			}
+
+			if (data.command == "callringing") {
+				document.getElementById("callstate").value = "callringing";
+				document.getElementById("pickup-call-button").disabled = false;
+				document.getElementById("hangup-call-button").disabled = true;
+			}
+
+			if (data.command == "callactive") {
+				document.getElementById("callstate").value = "callactive";
+				document.getElementById("pickup-call-button").disabled = true;
+				document.getElementById("hangup-call-button").disabled = false;		
+			}
+
+			if (data.command == "idle") {
+				document.getElementById("callstate").value = "idle";
+				document.getElementById("pickup-call-button").disabled = true;
+				document.getElementById("hangup-call-button").disabled = true;		
+			}
 		}
 
-		if (data == "transferon") {
-			document.getElementById("transfer-target-phone").style.color = "#13bb13";
+		if (data.type == "info") {
+			document.getElementById("infoLabel").innerHTML = data.message;
 		}
 
-		if (data == "callringing") {
-			document.getElementById("callstate").value = "callringing";
-			document.getElementById("pickup-call-button").disabled = false;
-			document.getElementById("hangup-call-button").disabled = true;
-		}
-
-		if (data == "callactive") {
-			document.getElementById("callstate").value = "callactive";
-			document.getElementById("pickup-call-button").disabled = true;
-			document.getElementById("hangup-call-button").disabled = false;		
-		}
-
-		if (data == "idle") {
-			document.getElementById("callstate").value = "idle";
-			document.getElementById("pickup-call-button").disabled = true;
-			document.getElementById("hangup-call-button").disabled = true;		
-		}
-
-		if (data.indexOf("#INFO#") != -1) {
-			document.getElementById("infoLabel").innerHTML = data.replace("#INFO#", "");
-		}
-
-		if (data.indexOf("#MSG#") != -1) {
-			document.getElementById("connectedLabel").innerHTML = data.replace("#MSG#", "");
+		if (data.type == "message") {
+			document.getElementById("connectedLabel").innerHTML = data.status + "; " + data.datetime + "; " + data.callid;
 		}
     });
 </script>
