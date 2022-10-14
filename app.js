@@ -1,6 +1,7 @@
 import soundfile from './TeamsRingTone.mp3'; 
+  
+const { PublicClientApplication } = require('@azure/msal-browser');
 
-// Make sure to install the necessary dependencies
 const { CallClient, VideoStreamRenderer, LocalVideoStream } = require('@azure/communication-calling');
 const { AzureCommunicationTokenCredential } = require('@azure/communication-common');
  
@@ -14,6 +15,16 @@ setLogLevel('verbose');
 AzureLogger.log = (...args) => {
     console.log(...args);
 };
+
+const publicClientApplication = new PublicClientApplication({
+	auth: {
+        clientId: "57cddb84-8833-48b2-b8b7-baddba6db02f",
+        authority: "https://login.microsoftonline.com/b9d2f243-b20e-44ca-aaba-b179b9963fe2",
+    },
+    system: {
+        tokenRenewalOffsetSeconds: 900 // 15 minutes (by default 5 minutes)
+    }
+});
 
 // UI objects
 let transferTargetPhone = document.getElementById('transfer-target-phone');
@@ -83,12 +94,94 @@ function sendPostMessage(pmsg) {
 
 }
 
+const fetchTokenFromMyServerForUser = async function (username) {
+
+	console.log("[REFRESHTOKEN] fetchTokenFromMyServerForUser arrived.");
+
+    // Refresh the Azure AD access token of the Teams User
+    let teamsTokenResponse = await refreshAadToken(username);
+
+	if (teamsTokenResponse != null) {
+		console.log("[REFRESHTOKEN] Accessing getTokenForTeamsUser");
+
+		var url = "https://waframegettoken.azurewebsites.net/getTokenForTeamsUser";
+		//var url = "https://wagettoken.azurewebsites.net/getTokenForTeamsUser";
+	
+		// Exchange the Azure AD access token of the Teams User for a Communication Identity access token
+		const response = await fetch(url,
+			{
+				method: "POST",
+				body: JSON.stringify({ teamsToken: teamsTokenResponse.accessToken }),
+				headers: { 'Content-Type': 'application/json' }
+			});
+	
+		console.log("[REFRESHTOKEN] fetch finished.");
+	
+		if (response.ok) {
+	
+			console.log("[REFRESHTOKEN] response ok: " + data.communicationIdentityToken);
+	
+			const data = await response.json();
+			return data.communicationIdentityToken;
+		}
+	}
+}
+
+const refreshAadToken = async function (username) {
+
+	console.log("[REFRESHTOKEN] refreshAadToken arrived for " + username);
+
+    //let account = (await publicClientApplication.getTokenCache().getAllAccounts()).find(u => u.username === username);
+
+	await publicClientApplication.handleRedirectPromise();
+	var account1 = publicClientApplication.getAccountByUsername(TeamsUserEmail);
+	console.log("[REFRESHTOKEN] account1 found: " + account1);
+
+	var account = publicClientApplication.getAllAccounts().find(u => u.username === username);
+	console.log("[REFRESHTOKEN] account found: " + account);
+
+    let tokenResponse = null;
+
+	if (account == undefined) {
+		console.log("[REFRESHTOKEN] account still not found.");
+		return tokenResponse;
+	}
+
+    const renewRequest = {
+        scopes: ["https://auth.msft.communication.azure.com/Teams.ManageCalls"],
+        account: account,
+        forceRefresh: true // Force-refresh the token
+    };
+
+	console.log("[REFRESHTOKEN] getting token silent.");
+
+    // Try to get the token silently without the user's interaction    
+    await publicClientApplication.acquireTokenSilent(renewRequest).then(renewResponse => {
+        tokenResponse = renewResponse;
+		console.log("[REFRESHTOKEN] new token response " + tokenResponse.accessToken);
+    }).catch(async (error) => {
+		console.log("[REFRESHTOKEN] " + error);
+    });
+
+    return tokenResponse;
+}
+
 // Create an instance of CallClient. Initialize a CallAgent instance with a CommunicationUserCredential via created CallClient. 
 async function CreateInstance() {
     try {
+
         const callClient = new CallClient(); 
-        tokenCredential = new AzureCommunicationTokenCredential(ACSToken);
-        callAgent = await callClient.createCallAgent(tokenCredential)
+        
+		// short-lived
+		//tokenCredential = new AzureCommunicationTokenCredential(ACSToken);
+
+		tokenCredential = new AzureCommunicationTokenCredential({
+            tokenRefresher: async () => fetchTokenFromMyServerForUser(TeamsUserEmail),
+			refreshProactively: true,
+            token: ACSToken
+        });
+		
+        callAgent = await callClient.createCallAgent(tokenCredential);
 		
 		document.getElementById("accept-call-button-image").src="hsgray.jpg";
 		document.getElementById("hangup-call-button-image").src="hshugray.jpg";
@@ -176,7 +269,13 @@ async function CreateInstance() {
 
 					// play ring tune
 					ringTone.load();
-					ringTone.play(); 
+
+					try {
+						ringTone.play();
+					}
+					catch (error) {
+						console.log(error);
+					}
 
 					messageMsg = {type: "message", status: "Presented", callid: incomingCall.id, datetime: getFormattedDate()};
 					sendPostMessage(messageMsg);
@@ -198,8 +297,8 @@ if ((queryString == null) || (queryString == ""))
 	infoMsg = {type: "info", message: "Acquiring token, please wait...", datetime: getFormattedDate()};
 	sendPostMessage(infoMsg);
 
-	//window.location.href = "https://waframegettoken.azurewebsites.net/";
-	window.location.href = "https://wagettoken.azurewebsites.net/";
+	window.location.href = "https://waframegettoken.azurewebsites.net/";
+	//window.location.href = "https://wagettoken.azurewebsites.net/";
 }
 
 const urlParams = new URLSearchParams(queryString);
@@ -209,8 +308,8 @@ if ((urlParams == null) || (urlParams == ""))
 	infoMsg = {type: "info", message: "Acquiring token, please wait...", datetime: getFormattedDate()};
 	sendPostMessage(infoMsg);
 
-	//window.location.href = "https://waframegettoken.azurewebsites.net/";
-	window.location.href = "https://wagettoken.azurewebsites.net/";
+	window.location.href = "https://waframegettoken.azurewebsites.net/";
+	//window.location.href = "https://wagettoken.azurewebsites.net/";
 }
 else 
 {
@@ -220,6 +319,9 @@ else
 
 	ACSToken = urlParams.get('token');
 	ACSTokenExpires = urlParams.get('expires');
+
+	actionMsg = {type: "action", command: "tokenexpirestime", tokenexpires: ACSTokenExpires, datetime: getFormattedDate()};
+	sendPostMessage(actionMsg);
 
 	TeamsUserEmail = urlParams.get('email');
 	TeamsUserId = urlParams.get('userid');
@@ -351,9 +453,33 @@ window.addEventListener("message", (e) => {
 			if (e.data.command == "HANGUP") {
 				goHangUp();
 			}
+			if (e.data.command == "MUTE") {
+				goMuteCall();
+			}
+			if (e.data.command == "UNMUTE") {
+				goUnmuteCall();
+			}
 		}
 	}
 });
+
+async function goMuteCall() {
+
+	await call1.mute();
+
+	document.getElementById("connectedLabel").innerHTML = "Call is currently muted.";
+	infoMsg = {type: "info", message: "Call is currently muted.", datetime: getFormattedDate()};
+	sendPostMessage(infoMsg);
+}
+
+async function goUnmuteCall() {
+
+	await call1.unmute();
+
+	document.getElementById("connectedLabel").innerHTML = "Call is currently unmuted.";
+	infoMsg = {type: "info", message: "Call is currently unmuted.", datetime: getFormattedDate()};
+	sendPostMessage(infoMsg);
+}
 
 // transfer current call
 transferCallButton.addEventListener("click", async () => {
@@ -426,8 +552,8 @@ async function goMakeTransfer() {
 			redirect: 'follow'
 	  	};
 
-		//var url = "https://waframegettoken.azurewebsites.net/getAppToken";
-		var url = "https://wagettoken.azurewebsites.net/getAppToken";
+		var url = "https://waframegettoken.azurewebsites.net/getAppToken";
+		//var url = "https://wagettoken.azurewebsites.net/getAppToken";
 
 		var vAppToken = "n/a";
 		try {
@@ -454,8 +580,8 @@ async function goMakeTransfer() {
 				infoMsg = {type: "info", message: "Creating transfering group.", datetime: getFormattedDate()};
 				sendPostMessage(infoMsg);
 
-				//var url2 = "https://waframegettoken.azurewebsites.net/getThreadId?appToken=" + vAppToken + "&userid=" + TeamsUserId;
-				var url2 = "https://wagettoken.azurewebsites.net/getThreadId?appToken=" + vAppToken + "&userid=" + TeamsUserId;
+				var url2 = "https://waframegettoken.azurewebsites.net/getThreadId?appToken=" + vAppToken + "&userid=" + TeamsUserId;
+				//var url2 = "https://wagettoken.azurewebsites.net/getThreadId?appToken=" + vAppToken + "&userid=" + TeamsUserId;
 
 				var vThreadId = "n/a";
 				try {
@@ -488,8 +614,8 @@ async function goMakeTransfer() {
 						infoMsg = {type: "info", message: "Getting user id.", datetime: getFormattedDate()};
 						sendPostMessage(infoMsg);
 
-						//var url3 = "https://waframegettoken.azurewebsites.net/getUserId?appToken=" + vAppToken + "&useremail=" + transferTargetPhone.value;
-						var url3 = "https://wagettoken.azurewebsites.net/getUserId?appToken=" + vAppToken + "&useremail=" + transferTargetPhone.value;
+						var url3 = "https://waframegettoken.azurewebsites.net/getUserId?appToken=" + vAppToken + "&useremail=" + transferTargetPhone.value;
+						//var url3 = "https://wagettoken.azurewebsites.net/getUserId?appToken=" + vAppToken + "&useremail=" + transferTargetPhone.value;
 															
 						var vUserId = "n/a";
 						try {

@@ -4,7 +4,7 @@
 <script>
 
 	function sendPostMessage(pmsg) {
-	   if ((pmsg.command == "HANGUP") || (pmsg.command == "TRANSFER")) {
+	   if ((pmsg.command == "HANGUP") || (pmsg.command == "TRANSFER") || (pmsg.command == "MUTE") || (pmsg.command == "UNMUTE")) {
 	     if (document.getElementById("callstate").value == "callactive") {
 		try {
 			var infoMsg = pmsg;
@@ -50,8 +50,13 @@
 <button id="pickup-call-button" type="button" disabled="true" style="margin-left:10px;" onclick="sendPostMessage({command: 'PICKUP'});">Pick Up</button> 
 &nbsp;
 <button id="hangup-call-button" type="button" disabled="true" onclick="sendPostMessage({command: 'HANGUP'});">Hang Up</button> 
+&nbsp;
+<button id="mute-call-button" type="button" disabled="true" onclick="sendPostMessage({command: 'MUTE'});">Mute</button> 
+&nbsp;
+<button id="unmute-call-button" type="button" disabled="true" onclick="sendPostMessage({command: 'UNMUTE'});">Unmute</button> 
 
 <br />
+
 
 <p id="transfer-target-phone" style="color: #777777; align-items: center; margin-left:10px; cursor: pointer" onclick="sendPostMessage({command: 'TRANSFER', phone: '+4527124010'});">Transfer call to +4527124010</p>
 <!--
@@ -75,6 +80,12 @@ Post message to ACS frame to hangup the call.
 {command: 'TRANSFER', phone: 'phone number'}
 Post message to ACS frame to transfer active call (i.e. {command: 'TRANSFER', phone: '+4527124010'}).
 
+{command: 'MUTE'}
+Post message to ACS frame to mute the call.
+
+{command: 'UNMUTE'}
+Post message to ACS frame to mute the call.
+
 ACS frame is sending these messages to the child frame:
 
 {type: "action", command: "transferoff", datetime: "actiondatetime"}
@@ -91,6 +102,9 @@ Current call is in progress. It can be used to enable hangup button which can se
 
 {type: "action", command: "idle", datetime: "actiondatetime"}
 No calls in progress. It can be used to disable all the buttons.
+
+{type: "action", command: "tokenexpirestime", tokenexpires: "tokenexpirationdatetime", datetime: "actiondatetime"}
+Indicates when ACS/Teams Token will expire.
 
 </pre>
 
@@ -115,18 +129,29 @@ No calls in progress. It can be used to disable all the buttons.
 				document.getElementById("callstate").value = "callringing";
 				document.getElementById("pickup-call-button").disabled = false;
 				document.getElementById("hangup-call-button").disabled = true;
+				document.getElementById("mute-call-button").disabled = true;		
+				document.getElementById("unmute-call-button").disabled = true;					
 			}
 
 			if (data.command == "callactive") {
 				document.getElementById("callstate").value = "callactive";
 				document.getElementById("pickup-call-button").disabled = true;
 				document.getElementById("hangup-call-button").disabled = false;		
+				document.getElementById("mute-call-button").disabled = false;		
+				document.getElementById("unmute-call-button").disabled = false;		
 			}
 
 			if (data.command == "idle") {
 				document.getElementById("callstate").value = "idle";
 				document.getElementById("pickup-call-button").disabled = true;
 				document.getElementById("hangup-call-button").disabled = true;		
+				document.getElementById("mute-call-button").disabled = true;		
+				document.getElementById("unmute-call-button").disabled = true;					
+			}
+
+			if (data.command == "tokenexpirestime") {
+				// reload ACS frame after expiration time is reached
+				document.getElementById("connectedLabel").innerHTML = "Token will expire at: " + data.tokenexpires;
 			}
 		}
 
