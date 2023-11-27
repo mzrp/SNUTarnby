@@ -20,8 +20,8 @@
     "webpack-merge": "^5.8.0"
   },
   "dependencies": {
-    "@azure/communication-calling": "^1.4.4",
-    "@azure/communication-common": "^2.0.0",
+    "@azure/communication-calling": "^1.6.3",
+    "@azure/communication-common": "^2.2.0",
     "@azure/communication-identity": "^1.0.0",
     "@azure/identity": "^2.0.4",
     "@azure/msal-browser": "^2.30.0",

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+
+<title>Phonebook</title>
+
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+
+<style>
+	.dataTables_wrapper .dataTables_filter  {
+		width:100%;
+		text-align:center;
+	}
+	
+	input {
+	
+		width: 500px;
+		margin-top:10px;
+		margin-bottom:20px;	
+	}
+    #contentLoader {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        -webkit-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+    }    
+</style>
+
+<script type="text/javascript" language="javascript" src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<script type="text/javascript" language="javascript" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.2.1/axios.min.js"></script>
+
+<script>
+
+    function sendPostMessage(pmsg) {
+
+        try {
+            var infoMsg = {type: "message", status: "MakeTransfer", phone_number: pmsg};
+
+            // send message to the parent window
+            var parentWindow = window.parent;
+            parentWindow.postMessage(infoMsg, "*");
+
+        }
+        catch (error) {
+            console.error(error);
+        }
+
+    }    
+	
+	async function fillPhonebookData() {
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        if ((urlParams == null) || (urlParams == "")) {
+            document.getElementById("phonebookLabel").innerHTML = "No Teams Token found.";
+        }
+        else {
+            var TeamsToken = urlParams.get('teamstoken');
+            var TeamsUserId = urlParams.get('teamsuserid');
+
+			const url = "https://taarnby-henven-gettoken.azurewebsites.net/getTeamsUsers?userId=" + TeamsUserId + "&actionToPerform=GETUSERSDATA&teamsToken=" + TeamsToken;
+            const config = {
+	            headers: {
+		            ContentType: `application/json`
+	            }
+            }
+
+            axios.get(url, config).then(await function (response) {
+
+                $(document).ready(function() {
+
+                    var tblPB = $('#phonebookGridData').DataTable();
+
+                for(let i = 0; i < response.data.data.length; i++) {
+
+                    var vPresence = "";
+                    var vAcitivity = "";
+                    if (response.data.data[i].presence == "Unknown") {
+                        vPresence = "Unknown";
+                        vAcitivity = "Unknown";
+                    }
+                    if (response.data.data[i].presence.indexOf("/") != "-1") {
+                        vPresence = response.data.data[i].presence.substring(0, response.data.data[i].presence.indexOf("/"));
+                        vAcitivity = response.data.data[i].presence.substring(response.data.data[i].presence.indexOf("/") + 1)
+                    }
+                    var vPresenceColor = "#d7d7d7";
+                    if (vPresence == "Unknown") vPresenceColor = "#d7d7d7";
+                    if (vPresence == "Offline") vPresenceColor = "#595959";
+                    if (vPresence == "Available") vPresenceColor = "#53b730";
+                    if (vPresence == "Busy") vPresenceColor = "#c73639";
+                    if (vPresence == "DoNotDisturb") vPresenceColor = "#c73639";
+                    if (vPresence == "Away") vPresenceColor = "#e3a300";
+                    if (vPresence == "BeRightBack") vPresenceColor = "#e3a300";
+
+                    var cellPRES = tblPB.cell('#presence_' + response.data.data[i].id);
+                    var cellPRESNEW = cellPRES.data().replace('#d7d7d7', vPresenceColor); 
+                    cellPRES.data(cellPRESNEW).draw();
+
+                    // keywords
+                    /*
+                    var vAllUserKeywordsArray = response.data.data[i].keywords.split("#$2$#");
+                    var vUserKeywords = "";
+                    for (let l = 0; l < vAllUserKeywordsArray.length; l++) {
+                        if (vAllUserKeywordsArray[l] != "") {
+                            if (vUserKeywords != "") vUserKeywords += ",";
+                            var vAllUserKeywordDataArray = vAllUserKeywordsArray[l].split("#$3$#");
+                            vUserKeywords += vAllUserKeywordDataArray[1];
+                        }
+                    }
+
+                    if (vUserKeywords == "") {
+                        vUserKeywords = "<i>add</i>";
+                    }
+
+                    document.getElementById("link_" + response.data.data[i].id).href = "javascript:editKeyword(`" + response.data.data[i].id + "`, `" + response.data.data[i].keywords + "`, `" + response.data.data[i].displayName + "`, `" + response.data.data[i].mail + "`, `" + response.data.data[i].note + "`);"; 
+                    document.getElementById("link_" + response.data.data[i].id).innerHTML = vUserKeywords;
+
+                    // note
+                    if (response.data.data[i].note != null) {
+                        if (response.data.data[i].note != "") {
+                            if (response.data.data[i].note != "na") {
+                                document.getElementById("note_" + response.data.data[i].id).innerHTML = response.data.data[i].note;
+                            }
+                            else {
+                                document.getElementById("note_" + response.data.data[i].id).innerHTML = "";
+                            }
+                        }
+                        else {
+                            document.getElementById("note_" + response.data.data[i].id).innerHTML = "";
+                        }
+                    }
+                    else {
+	                    document.getElementById("note_" + response.data.data[i].id).innerHTML = "";
+                    }
+
+                    // calendar
+                    for (let j = 0; j < response.data.data[i].calendar.length; j++) {
+                        if(response.data.data[i].calendar.charAt(j) == '0') {
+                            document.getElementById("calendar_" + response.data.data[i].id).innerHTML += "<div style=\"float: left; margin-left:0px; height: 15px; width: 3px; background-color:#53b730; display: inline-block;\"></div>"
+                        }
+                        if(response.data.data[i].calendar.charAt(j) == '1') {
+                            document.getElementById("calendar_" + response.data.data[i].id).innerHTML += "<div style=\"float: left; margin-left:0px; height: 15px; width: 3px; background-color:#c73639; display: inline-block;\"></div>"
+                        }
+                        if(response.data.data[i].calendar.charAt(j) == '2') {
+                            document.getElementById("calendar_" + response.data.data[i].id).innerHTML += "<div style=\"float: left; margin-left:0px; height: 15px; width: 3px; background-color:#c73639; display: inline-block;\"></div>"
+                        }
+                        if(response.data.data[i].calendar.charAt(j) == '3') {
+                            document.getElementById("calendar_" + response.data.data[i].id).innerHTML += "<div style=\"float: left; margin-left:0px; height: 15px; width: 3px; background-color:#810f76; display: inline-block;\"></div>"
+                        }
+                        if(response.data.data[i].calendar.charAt(j) == '4') {
+                            document.getElementById("calendar_" + response.data.data[i].id).innerHTML += "<div style=\"float: left; margin-left:0px; height: 15px; width: 3px; background-color:#c73639; display: inline-block;\"></div>"
+                        }
+                    }
+                    */
+
+                    var cellACT = tblPB.cell('#activity_' + response.data.data[i].id);
+                    cellACT.data(vAcitivity).draw();
+
+                }
+
+                });
+
+            })
+
+        }
+	}
+	
+    async function getPhonebookData() {
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        if ((urlParams == null) || (urlParams == "")) {
+            document.getElementById("phonebookLabel").innerHTML = "No Teams Token found.";
+        }
+        else {
+            var TeamsToken = urlParams.get('teamstoken');
+            var TeamsUserId = urlParams.get('teamsuserid');
+
+			const url = "https://taarnby-henven-gettoken.azurewebsites.net/getTeamsUsers?userId=" + TeamsUserId + "&actionToPerform=USERSONLY&teamsToken=" + TeamsToken;
+            const config = {
+	            headers: {
+		            ContentType: `application/json`
+	            }
+            }
+
+            axios.get(url, config).then(await function (response) {
+
+                var vMT = "";
+
+                vMT += "<table id='phonebookGridData' class='display' style='width:100%; font-family: Calibri, Segoe, Arial;'>";
+                vMT += " <thead>";
+                vMT += "  <tr>";
+                vMT += "   <th>Name</th>";
+                vMT += "   <th>Mail</th>";
+                vMT += "   <th>Business Phones</th>";
+                vMT += "   <th>Keywords</th>";
+                vMT += "   <th>Note</th>";
+                vMT += "   <th>Department</th>";
+                vMT += "   <th>Calendar</th>";
+                vMT += "   <th>Activity</th>";
+                vMT += "  </tr>";
+                vMT += " </thead>";
+                vMT += " <tbody>";
+
+                for(let i = 0; i < response.data.data.length; i++) {
+
+                    var vPresence = "Unknown";
+                    var vAcitivity = "Unknown";
+                    var vPresenceColor = "#d7d7d7";
+
+                    vMT += "  <tr align='left'> ";
+
+                    vMT += "   <td id=\"presence_" + response.data.data[i].id + "\"><div style=\"float: left; margin-left:5px; height: 15px; width: 15px; background-color: " + vPresenceColor + "; border-radius: 50%; display: inline-block;\"></div><div style=\"margin-top:-2px; margin-left:5px; float: left;\"><b>" + response.data.data[i].displayName + "</b></div></td>";
+
+                    if (response.data.data[i].mail != null) {
+	                    vMT += "   <td>" + response.data.data[i].mail + "</td>";
+                    }
+                    else {
+	                    vMT += "   <td></td>";
+                    }
+
+                    //vMT += "   <td><a href='javascript:parent.MakeTransfer(`" + response.data.data[i].businessPhones + "`);'>" + response.data.data[i].businessPhones + "</a></td>";
+                    vMT += "   <td><a href='javascript:sendPostMessage(`" + response.data.data[i].businessPhones + "`);'>" + response.data.data[i].businessPhones + "</a></td>";                    
+
+                    // keywords
+                    vMT += "   <td id='link_" + response.data.data[i].id + "'></td>";
+
+                    // note
+                    vMT += "   <td id='note_" + response.data.data[i].id + "'></td>";
+
+                    // department
+                    if (response.data.data[i].department != null) {
+                        var vUserDepartment = response.data.data[i].department;
+                        if (vUserDepartment == "Microsoft Communication Application Instance") {
+                            vUserDepartment = "Application";
+                        }
+	                    vMT += "   <td>" + vUserDepartment + "</td>";
+                    }
+                    else {
+	                    vMT += "   <td></td>";
+                    }
+
+                    // calendar
+                    vMT += "   <td id=\"calendar_" + response.data.data[i].id + "\"></td>";
+                    
+                    // activity
+                    vMT += "   <td id=\"activity_" + response.data.data[i].id + "\" >" + vAcitivity + "</td>";
+
+                    vMT += "  </tr>";
+
+                }
+
+                vMT += " </tbody>";
+                vMT += " <tfoot>";
+                vMT += "  <tr>";
+                vMT += "   <th>Name</th>";
+                vMT += "   <th>Mail</th>";
+                vMT += "   <th>Business Phones</th>";
+                vMT += "   <th>Keywords</th>";
+                vMT += "   <th>Note</th>";
+                vMT += "   <th>Department</th>";
+                vMT += "   <th>Calendar</th>";
+                vMT += "   <th>Activity</th>";
+                vMT += "  </tr>";
+                vMT += " </tfoot>";
+                vMT += "</table>";
+
+                document.getElementById("contentLoader").style.display = "none";
+                document.getElementById("phonebookTable").innerHTML = vMT;
+                var table = new DataTable('#phonebookGridData', { "dom": "ftp", "columnDefs": [ { "searchable": false, "targets": [4] } ] });
+
+                setTimeout(fillPhonebookData, 250);
+
+            })
+
+        }
+	}
+	
+</script>
+
+<body onload="getPhonebookData()">
+
+    <div id="contentLoader" style="display:visible;">
+        <center><img src="DoubleRing.gif" /></center>
+        <br />
+        <br />
+        Please wait, loading Teams users.
+    </div>    
+    
+    <div id="phonebookTable"></div>
+
+</body>
+</html>

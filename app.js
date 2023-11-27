@@ -1,7 +1,5 @@
 import soundfile from './TeamsRingTone.mp3'; 
   
-const { PublicClientApplication } = require('@azure/msal-browser');
-
 const { CallClient, VideoStreamRenderer, LocalVideoStream } = require('@azure/communication-calling');
 const { AzureCommunicationTokenCredential } = require('@azure/communication-common');
  
@@ -16,21 +14,12 @@ AzureLogger.log = (...args) => {
     console.log(...args);
 };
 
-const publicClientApplication = new PublicClientApplication({
-	auth: {
-        clientId: "57cddb84-8833-48b2-b8b7-baddba6db02f",
-        authority: "https://login.microsoftonline.com/b9d2f243-b20e-44ca-aaba-b179b9963fe2",
-    },
-    system: {
-        tokenRenewalOffsetSeconds: 900 // 15 minutes (by default 5 minutes)
-    }
-});
-
 // UI objects
 let transferTargetPhone = document.getElementById('transfer-target-phone');
 let transferCallButton = document.getElementById('transfer-call-button');
 let acceptCallButton = document.getElementById('accept-call-button');
 let hangUpCallButton = document.getElementById('hangup-call-button');
+let muteunmuteCallButton = document.getElementById('muteunmute-call-button');
 
 document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 transferCallButton.disabled = true;
@@ -46,16 +35,18 @@ sendPostMessage(actionMsg);
 actionMsg = {type: "action", command: "transferoff", datetime: getFormattedDate()};
 sendPostMessage(actionMsg);
 
-// app objects
+let callClient;
+let callAgent;
+let deviceManager;
+
 let ACSToken;
 let ACSTokenExpires;
 let TeamsUserName;
 let TeamsUserId;
 let TeamsToken;
 let TeamsUserEmail;
+let TeamsUserAccount;
 let tokenCredential;
-let callAgent;
-let deviceManager;
 
 let call1;
 let call2;
@@ -66,7 +57,7 @@ let incomingCall;
 let incomingCallId;
 let callerInfo;
 let ringTone;
-let btnstatus = "00";
+var btnstatus = "00";
 
 ringTone = new Audio(soundfile);
 ringTone.loop = true;
@@ -83,9 +74,16 @@ function sendPostMessage(pmsg) {
 
 	try {
 		var infoMsg = pmsg;
-		var childWindow = document.getElementById("selvbetjeningfr");
-		childWindow = childWindow ? childWindow.contentWindow : null;
-		childWindow.postMessage(infoMsg, "*");
+
+		// send message to the iframe window
+		//var childWindow = document.getElementById("selvbetjeningfr");
+		//childWindow = childWindow ? childWindow.contentWindow : null;
+		//childWindow.postMessage(infoMsg, "*");
+
+		// send message to the parent window
+		var parentWindow = window.parent;
+		parentWindow.postMessage(infoMsg, "*");
+
 		console.log(infoMsg);
 	}
 	catch (error) {
@@ -94,117 +92,151 @@ function sendPostMessage(pmsg) {
 
 }
 
-const fetchTokenFromMyServerForUser = async function (username) {
+//const fetchTokenFromMyServerForUser = async function (username) {
+async function fetchTokenFromMyServerForUser(username) {
 
 	console.log("[REFRESHTOKEN] fetchTokenFromMyServerForUser arrived.");
 
-    // Refresh the Azure AD access token of the Teams User
-    let teamsTokenResponse = await refreshAadToken(username);
+	var urlGetRefreshToken = "https://taarnby-henven-gettoken.azurewebsites.net/getTokenForTeamsUser?useraccount=" + TeamsUserAccount;
 
-	if (teamsTokenResponse != null) {
-		console.log("[REFRESHTOKEN] Accessing getTokenForTeamsUser");
+	console.log("[REFRESHTOKEN] url: " + urlGetRefreshToken);
 
-		var url = "https://waframegettoken.azurewebsites.net/getTokenForTeamsUser";
-		//var url = "https://wagettoken.azurewebsites.net/getTokenForTeamsUser";
-	
-		// Exchange the Azure AD access token of the Teams User for a Communication Identity access token
-		const response = await fetch(url,
-			{
-				method: "POST",
-				body: JSON.stringify({ teamsToken: teamsTokenResponse.accessToken }),
-				headers: { 'Content-Type': 'application/json' }
-			});
-	
-		console.log("[REFRESHTOKEN] fetch finished.");
-	
-		if (response.ok) {
-	
-			console.log("[REFRESHTOKEN] response ok: " + data.communicationIdentityToken);
-	
-			const data = await response.json();
-			return data.communicationIdentityToken;
+	// Exchange the Azure AD access token of the Teams User for a Communication Identity access token
+	try {
+		var myTokenHeaders = new Headers();
+		myTokenHeaders.append("Content-Type", "application/json");
+		var requestTokenOptions = {
+			method: 'GET',
+			headers: myTokenHeaders,
+			redirect: 'follow'
+	  	};
+		const newTokenResponse = await fetch(urlGetRefreshToken, requestTokenOptions);
+		const newTokenResponseJson = await newTokenResponse.json();
+
+		console.log("[REFRESHTOKEN] response ok, New token: " + newTokenResponseJson.result);	
+
+		if (newTokenResponseJson.result != null) {
+			if (newTokenResponseJson.result.indexOf("RefreshTokenError") == -1) {
+				// refresh token if no call is in progress
+				setTimeout(goRefreshTokenNow.bind(null, newTokenResponseJson.result), 3000);
+			}
+			else {
+				messageMsg = {type: "message", status: "RefreshToken", text: "Error Refreshing Token. Please Log In.", datetime: getFormattedDate()};
+				sendPostMessage(messageMsg);
+			}
 		}
+		else {
+			messageMsg = {type: "message", status: "RefreshToken", text: "Error Refreshing Token. Please Log In.", datetime: getFormattedDate()};
+			sendPostMessage(messageMsg);
+		}
+
 	}
+	catch (error) {
+		console.log("[REFRESHTOKEN] fetch failed: " + error);
+	}
+
+	console.log("[REFRESHTOKEN] fetch finished.");
 }
 
-const refreshAadToken = async function (username) {
+function goRefreshTokenNow(newRefreshedToken) {
+	
+	if (btnstatus == "00") {
 
-	console.log("[REFRESHTOKEN] refreshAadToken arrived for " + username);
+		try {
+			ACSToken = newRefreshedToken;
+			console.log("[REFRESHTOKEN] refreshed token assigned.");	
+		}
+		catch (errordisp) {
+			console.log("[REFRESHTOKEN] ISS1.");
+		}		
 
-    //let account = (await publicClientApplication.getTokenCache().getAllAccounts()).find(u => u.username === username);
+		try {
+			tokenCredential.dispose();
+			callAgent.dispose();
+			console.log("[REFRESHTOKEN] disposing done.");	
+		}
+		catch (errordisp) {
+			console.log("[REFRESHTOKEN] ISS2.");
+		}
 
-	await publicClientApplication.handleRedirectPromise();
-	var account1 = publicClientApplication.getAccountByUsername(TeamsUserEmail);
-	console.log("[REFRESHTOKEN] account1 found: " + account1);
+		try {
+			callClient = null;
+			deviceManager = null;
+			callAgent = null;
+			console.log("[REFRESHTOKEN] vars nulled.");		
+		}
+		catch (errordisp) {
+			console.log("[REFRESHTOKEN] ISS3.");
+		}
+		
+		CreateInstance(false);
 
-	var account = publicClientApplication.getAllAccounts().find(u => u.username === username);
-	console.log("[REFRESHTOKEN] account found: " + account);
+		console.log("[REFRESHTOKEN] New token activated.");
 
-    let tokenResponse = null;
-
-	if (account == undefined) {
-		console.log("[REFRESHTOKEN] account still not found.");
-		return tokenResponse;
+		messageMsg = {type: "message", status: "RefreshToken", text: "Token Refreshed.", datetime: getFormattedDate()};
+		sendPostMessage(messageMsg);
+	}
+	else {
+		// refresh token if no call is in progress
+		setTimeout(goRefreshTokenNow.bind(null, newRefreshedToken), 3000);
 	}
 
-    const renewRequest = {
-        scopes: ["https://auth.msft.communication.azure.com/Teams.ManageCalls"],
-        account: account,
-        forceRefresh: true // Force-refresh the token
-    };
-
-	console.log("[REFRESHTOKEN] getting token silent.");
-
-    // Try to get the token silently without the user's interaction    
-    await publicClientApplication.acquireTokenSilent(renewRequest).then(renewResponse => {
-        tokenResponse = renewResponse;
-		console.log("[REFRESHTOKEN] new token response " + tokenResponse.accessToken);
-    }).catch(async (error) => {
-		console.log("[REFRESHTOKEN] " + error);
-    });
-
-    return tokenResponse;
 }
 
 // Create an instance of CallClient. Initialize a CallAgent instance with a CommunicationUserCredential via created CallClient. 
-async function CreateInstance() {
-    try {
-
-        const callClient = new CallClient(); 
-        
+async function CreateInstance(firsttime) {
+    try {       
 		// short-lived
-		//tokenCredential = new AzureCommunicationTokenCredential(ACSToken);
+		tokenCredential = new AzureCommunicationTokenCredential(ACSToken);
 
+		/*
 		tokenCredential = new AzureCommunicationTokenCredential({
             tokenRefresher: async () => fetchTokenFromMyServerForUser(TeamsUserEmail),
 			refreshProactively: true,
             token: ACSToken
         });
-		
-        callAgent = await callClient.createCallAgent(tokenCredential);
-		
-		document.getElementById("accept-call-button-image").src="hsgray.jpg";
-		document.getElementById("hangup-call-button-image").src="hshugray.jpg";
-		btnstatus = "00";
+		*/
 
-		actionMsg = {type: "action", command: "idle", datetime: getFormattedDate()};
-		sendPostMessage(actionMsg);
+		// Initiate call agent
+		callClient = new CallClient(); 
+		callAgent = await callClient.createCallAgent(tokenCredential);
 
-		document.getElementById("transfer-call-button-image").src="hstgray.jpg";
-		transferCallButton.disabled = true;
-		transferTargetPhone.disabled = true;
+		// refresh token in 30 min
+		setTimeout(fetchTokenFromMyServerForUser.bind(null, TeamsUserEmail), 1800000);
 
-		document.getElementById("connectedLabel").innerHTML = "Environment is initiated!";
-		infoMsg = {type: "info", message: "Environment is initiated!", datetime: getFormattedDate()};
-		sendPostMessage(infoMsg);
-
-		actionMsg = {type: "action", command: "transferoff", datetime: getFormattedDate()};
-		sendPostMessage(actionMsg);
-		        
 		// Set up a audio device to use.
-        deviceManager = await callClient.getDeviceManager();
-        await deviceManager.askDevicePermission({ audio: true });
-		
+		deviceManager = await callClient.getDeviceManager();
+		await deviceManager.askDevicePermission({ audio: true });					
+				
+		if (btnstatus == "00") {
+
+			document.getElementById("accept-call-button-image").src="hsgray.jpg";
+			document.getElementById("hangup-call-button-image").src="hshugray.jpg";
+			document.getElementById("muteunmute-call-button-image").src="mutegray.jpg";
+			btnstatus = "00";		
+
+			actionMsg = {type: "action", command: "idle", datetime: getFormattedDate()};
+			sendPostMessage(actionMsg);
+
+			document.getElementById("transfer-call-button-image").src="hstgray.jpg";
+			transferCallButton.disabled = true;
+			transferTargetPhone.disabled = true;
+
+			actionMsg = {type: "action", command: "transferoff", datetime: getFormattedDate()};
+			sendPostMessage(actionMsg);
+		}
+
+		if (firsttime == true) {
+			document.getElementById("connectedLabel").innerHTML = "Environment is initiated!";
+			infoMsg = {type: "info", message: "Environment is initiated!", datetime: getFormattedDate()};
+			sendPostMessage(infoMsg);
+		}
+		else {
+			document.getElementById("connectedLabel").innerHTML = "Token refreshed. Environment is reinitiated!";
+			infoMsg = {type: "info", message: "Environment is initiated!", datetime: getFormattedDate()};
+			sendPostMessage(infoMsg);
+		}
+		        		
         // Listen for an incoming call to accept.
         callAgent.on('incomingCall', async (args) => {
             try {
@@ -215,6 +247,7 @@ async function CreateInstance() {
 
 						document.getElementById("accept-call-button-image").src="hsgray.jpg";
 						document.getElementById("hangup-call-button-image").src="hshugray.jpg";
+						document.getElementById("muteunmute-call-button-image").src="mutegray.jpg";
 						btnstatus = "00";
 
 						actionMsg = {type: "action", command: "idle", datetime: getFormattedDate()};
@@ -249,18 +282,23 @@ async function CreateInstance() {
 					if (callPhone != callDisplayName) 
 					{
 						if (callPhone != undefined) {
-							callToShow += ", " + callPhone;
+							if (callPhone != null) {
+								callToShow += ", " + callPhone;
+							}
 						}
 					}
-	
+					if (callToShow.indexOf(", ") == 0) {
+						callToShow = callToShow.replace(", ", "");
+					}						
 					// Get information about caller
 					callerInfo = callToShow;// + " (" + callKind + ")";
 	
 					document.getElementById("accept-call-button-image").src="hsgr.jpg";
 					document.getElementById("hangup-call-button-image").src="hshugray.jpg";
+					document.getElementById("muteunmute-call-button-image").src="mutegray.jpg";
 					btnstatus = "10";
 					
-					actionMsg = {type: "action", command: "callringing", datetime: getFormattedDate()};
+					actionMsg = {type: "action", command: "callringing", caller: callerInfo, datetime: getFormattedDate()};
 					sendPostMessage(actionMsg);
 					
 					document.getElementById("connectedLabel").innerHTML = "Ring... Ring... Incoming call from: " + callerInfo + ", Call Id: " + incomingCallId;
@@ -297,8 +335,7 @@ if ((queryString == null) || (queryString == ""))
 	infoMsg = {type: "info", message: "Acquiring token, please wait...", datetime: getFormattedDate()};
 	sendPostMessage(infoMsg);
 
-	window.location.href = "https://waframegettoken.azurewebsites.net/";
-	//window.location.href = "https://wagettoken.azurewebsites.net/";
+	window.location.href = "https://taarnby-henven-gettoken.azurewebsites.net";
 }
 
 const urlParams = new URLSearchParams(queryString);
@@ -308,8 +345,7 @@ if ((urlParams == null) || (urlParams == ""))
 	infoMsg = {type: "info", message: "Acquiring token, please wait...", datetime: getFormattedDate()};
 	sendPostMessage(infoMsg);
 
-	window.location.href = "https://waframegettoken.azurewebsites.net/";
-	//window.location.href = "https://wagettoken.azurewebsites.net/";
+	window.location.href = "https://taarnby-henven-gettoken.azurewebsites.net/";
 }
 else 
 {
@@ -327,8 +363,12 @@ else
 	TeamsUserId = urlParams.get('userid');
 	TeamsUserName = urlParams.get('name');
 	TeamsToken = urlParams.get('teamstoken');
+	TeamsUserAccount = unescape(urlParams.get('teamsaccount'));
+	//TeamsUserAccount = JSON.parse(unescape(urlParams.get('teamsaccount')));
 
-    CreateInstance();
+	document.getElementById("internalLabel").innerHTML = "<a href='https://taarnbyrcswebanswer.z6.web.core.windows.net/Api/Phonebook.html?teamsuserid=" + TeamsUserId + "&teamstoken=" + TeamsToken + "' target='_blank'>Phonebook</a>";
+
+    CreateInstance(true);
 }
 
 async function goAcceptTheCall() {
@@ -349,10 +389,14 @@ async function goAcceptTheCall() {
 		if (callPhone != callDisplayName) 
 		{
 			if (callPhone != undefined) {
-				callToShow += ", " + callPhone;
+				if (callPhone != null) {
+					callToShow += ", " + callPhone;
+				}
 			}
 		}
-
+		if (callToShow.indexOf(", ") == 0) {
+			callToShow = callToShow.replace(", ", "");
+		}
 		callerInfo = callToShow;// + " (" + callKind + ")";
 
 		callTransferApi1 = call1.feature(Features.Transfer);
@@ -366,6 +410,7 @@ async function goAcceptTheCall() {
 		
 		document.getElementById("accept-call-button-image").src="hsgray.jpg";
 		document.getElementById("hangup-call-button-image").src="hshured.jpg";
+		document.getElementById("muteunmute-call-button-image").src="muteblue.jpg";
 		btnstatus = "01";
 
 		actionMsg = {type: "action", command: "callactive", datetime: getFormattedDate()};
@@ -387,12 +432,27 @@ async function goAcceptTheCall() {
 		infoMsg = {type: "info", message: "Connected to: " + callerInfo + ", Call Id: " + incomingCallId + vThreadIdInfo, datetime: getFormattedDate()};
 		sendPostMessage(infoMsg);
 	
-		messageMsg = {type: "message", status: "PickedUp", callid: incomingCall.id, datetime: getFormattedDate()};
+		messageMsg = {type: "message", status: "PickedUp", caller: callerInfo, callid: incomingCall.id, datetime: getFormattedDate()};
 		sendPostMessage(messageMsg);
 				
     } catch (error) {
         console.error(error);
     }
+
+}
+
+// Muting an incoming call
+muteunmuteCallButton.onclick = async () => {
+
+	//alert(document.getElementById("muteunmute-call-button-image").src);
+
+	if (document.getElementById("muteunmute-call-button-image").src == "https://taarnbyrcswebanswer.z6.web.core.windows.net/muteblue.jpg") {
+		goMuteCall();
+	}
+
+	if (document.getElementById("muteunmute-call-button-image").src == "https://taarnbyrcswebanswer.z6.web.core.windows.net/mutered.jpg") {
+		goUnmuteCall();
+	}
 
 }
 
@@ -416,7 +476,8 @@ async function goHangUp() {
 	 sendPostMessage(infoMsg);
 
 	 document.getElementById("accept-call-button-image").src="hsgray.jpg";
-	 document.getElementById("hangup-call-button-image").src="hsupgray.jpg";
+	 document.getElementById("hangup-call-button-image").src="hshugray.jpg";
+	 document.getElementById("muteunmute-call-button-image").src="mutegray.jpg";
 	 btnstatus = "00";
 
 	 actionMsg = {type: "action", command: "idle", datetime: getFormattedDate()};
@@ -448,15 +509,19 @@ window.addEventListener("message", (e) => {
 				goMakeTransfer();
 			}
 			if (e.data.command == "PICKUP") {
+				console.log("[SELVBETMSG] PICKUP arrived.");
 				goAcceptTheCall();
 			}
 			if (e.data.command == "HANGUP") {
+				console.log("[SELVBETMSG] HANGUP arrived.");
 				goHangUp();
 			}
 			if (e.data.command == "MUTE") {
+				console.log("[SELVBETMSG] MUTE arrived.");
 				goMuteCall();
 			}
 			if (e.data.command == "UNMUTE") {
+				console.log("[SELVBETMSG] UNMUTE arrived.");
 				goUnmuteCall();
 			}
 		}
@@ -467,6 +532,7 @@ async function goMuteCall() {
 
 	await call1.mute();
 
+	document.getElementById("muteunmute-call-button-image").src = "mutered.jpg"
 	document.getElementById("connectedLabel").innerHTML = "Call is currently muted.";
 	infoMsg = {type: "info", message: "Call is currently muted.", datetime: getFormattedDate()};
 	sendPostMessage(infoMsg);
@@ -476,6 +542,7 @@ async function goUnmuteCall() {
 
 	await call1.unmute();
 
+	document.getElementById("muteunmute-call-button-image").src = "muteblue.jpg"
 	document.getElementById("connectedLabel").innerHTML = "Call is currently unmuted.";
 	infoMsg = {type: "info", message: "Call is currently unmuted.", datetime: getFormattedDate()};
 	sendPostMessage(infoMsg);
@@ -552,8 +619,7 @@ async function goMakeTransfer() {
 			redirect: 'follow'
 	  	};
 
-		var url = "https://waframegettoken.azurewebsites.net/getAppToken";
-		//var url = "https://wagettoken.azurewebsites.net/getAppToken";
+		var url = "https://taarnby-henven-gettoken.azurewebsites.net/getAppToken";		
 
 		var vAppToken = "n/a";
 		try {
@@ -580,8 +646,7 @@ async function goMakeTransfer() {
 				infoMsg = {type: "info", message: "Creating transfering group.", datetime: getFormattedDate()};
 				sendPostMessage(infoMsg);
 
-				var url2 = "https://waframegettoken.azurewebsites.net/getThreadId?appToken=" + vAppToken + "&userid=" + TeamsUserId;
-				//var url2 = "https://wagettoken.azurewebsites.net/getThreadId?appToken=" + vAppToken + "&userid=" + TeamsUserId;
+				var url2 = "https://taarnby-henven-gettoken.azurewebsites.net/getThreadId?appToken=" + vAppToken + "&userid=" + TeamsUserId;
 
 				var vThreadId = "n/a";
 				try {
@@ -614,9 +679,8 @@ async function goMakeTransfer() {
 						infoMsg = {type: "info", message: "Getting user id.", datetime: getFormattedDate()};
 						sendPostMessage(infoMsg);
 
-						var url3 = "https://waframegettoken.azurewebsites.net/getUserId?appToken=" + vAppToken + "&useremail=" + transferTargetPhone.value;
-						//var url3 = "https://wagettoken.azurewebsites.net/getUserId?appToken=" + vAppToken + "&useremail=" + transferTargetPhone.value;
-															
+						var url3 = "https://taarnby-henven-gettoken.azurewebsites.net/getUserId?appToken=" + vAppToken + "&useremail=" + transferTargetPhone.value;															
+
 						var vUserId = "n/a";
 						try {
 							const rawResponse3 = await fetch(url3, requestOptions);

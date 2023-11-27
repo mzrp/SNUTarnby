@@ -1,86 +1,99 @@
 body, html {
-    width: 100%; 
-    height: 100%; 
-    margin: 0; 
-    padding: 0
-  }
-  
-  html {
-    font-family: sans-serif;
-  }
-  
-  .row-container {
-    display: flex; 
-    width: 100%; 
-    height: 100%; 
-    flex-direction: column; 
-    background-color: white; 
-    overflow: hidden;
-  }
-  
-  .first-row {
-    background-color: white;
-    /*height: 100px;*/
-    height: 0px;
-    padding: 15px;
-    display: none;
-    align-items: center;
-  }
-  
-  .second-row { 
-    flex-grow: 1; 
-    border: none; 
-    margin: 0; 
-    padding: 0; 
-  }
-  
-  button {
-    display: inline-block;
-    height: 40px;
-    padding: 0;
-    margin: 0;
-    vertical-align: top;
-    width: 40px;
-    cursor:pointer;
-  }
-  
-  #accept-call-button:hover #accept-call-button-image {
+  width: 100%; 
+  height: 100%; 
+  margin: 5; 
+  padding: 5
+}
+
+html {
+  font-family: sans-serif;
+}
+
+.row-container {
+  display: flex; 
+  width: 100%; 
+  height: 100%; 
+  flex-direction: column; 
+  background-color: white; 
+  overflow: hidden;
+}
+
+.first-row {
+  background-color: white;
+  /*height: 100px;*/
+  height: 0px;
+  padding: 15px;
+  display: none;
+  align-items: center;
+}
+
+.second-row { 
+  flex-grow: 1; 
+  border: none; 
+  margin: 0; 
+  padding: 0; 
+}
+
+button {
+  display: inline-block;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  vertical-align: top;
+  width: 40px;
+  cursor:pointer;
+}
+
+#accept-call-button:hover #accept-call-button-image {
+opacity: 0.7;
+}
+
+#muteunmute-call-button:hover #accept-call-button-image {
   opacity: 0.7;
-  }
-  
-  #hangup-call-button:hover #hangup-call-button-image {
+}
+
+#hangup-call-button:hover #hangup-call-button-image {
+opacity: 0.7;
+}
+
+#transfer-call-button:hover #transfer-call-button-image {
   opacity: 0.7;
-  }
-  
-  #transfer-call-button:hover #transfer-call-button-image {
-    opacity: 0.7;
-  }
-  
-  #accept-call-button img {
-    display: block;
-    height: 40px;  
-    width: 40px;
-    opacity: 1;
-    margin-top: -2px;
-    margin-left: -2px;
-  }  
-  
-  #hangup-call-button img {
+}
+
+#accept-call-button img {
+  display: block;
+  height: 40px;  
+  width: 40px;
+  opacity: 1;
+  margin-top: -2px;
+  margin-left: -2px;
+}  
+
+#muteunmute-call-button img {
+  display: block;
+  height: 40px;  
+  width: 40px;
+  opacity: 1;
+  margin-top: -2px;
+  margin-left: -2px;
+}  
+
+#hangup-call-button img {
+display: block;
+height: 40px;  
+width: 40px;
+opacity: 1;
+margin-top: -2px;
+margin-left: -2px;  
+}  
+
+#transfer-call-button img {
   display: block;
   height: 40px;  
   width: 40px;
   opacity: 1;
   margin-top: -2px;
   margin-left: -2px;  
-  }  
-  
-  #transfer-call-button img {
-    display: block;
-    height: 40px;  
-    width: 40px;
-    opacity: 1;
-    margin-top: -2px;
-    margin-left: -2px;  
-  }  
+}  
 
-  input[type="text"]{ padding: 7px 10px; line-height: 8px; width: 400px; font-size:20px; }
+input[type="text"]{ padding: 7px 10px; line-height: 8px; width: 400px; font-size:20px; }

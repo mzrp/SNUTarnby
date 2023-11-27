@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+
+<title>Phonebook</title>
+
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+
+<style>
+	.dataTables_wrapper .dataTables_filter  {
+		width:100%;
+		text-align:center;
+	}
+	
+	input {
+	
+		width: 500px;
+		margin-top:10px;
+		margin-bottom:20px;	
+	}
+    #contentLoader {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        -webkit-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+    }    
+</style>
+
+<script type="text/javascript" language="javascript" src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<script type="text/javascript" language="javascript" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.2.1/axios.min.js"></script>
+
+<script>
+
+    function sendPostMessage(pmsg) {
+
+        try {
+            var infoMsg = {type: "message", status: "MakeTransfer", phone_number: pmsg};
+
+            // send message to the parent window
+            var parentWindow = window.parent;
+            parentWindow.postMessage(infoMsg, "*");
+
+        }
+        catch (error) {
+            console.error(error);
+        }
+
+    }    
+
+	function getPhonebookData() {
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        if ((urlParams == null) || (urlParams == "")) {
+            document.getElementById("phonebookLabel").innerHTML = "No Teams Token found.";
+        }
+        else {
+            var TeamsToken = urlParams.get('teamstoken');
+            var TeamsUserId = urlParams.get('teamsuserid');
+
+            //const url = "https://waframegettoken.azurewebsites.net/getTeamsUsers?userId=" + TeamsUserId + "&teamsToken=" + TeamsToken;
+            const url = "https://taarnby-henven-gettoken.azurewebsites.net/getTeamsUsers?userId=" + TeamsUserId + "&teamsToken=" + TeamsToken;
+            const config = {
+	            headers: {
+		            ContentType: `application/json`
+	            }
+            }
+
+            axios.get(url, config).then(function (response) {
+
+                var vMT = "";
+
+                vMT += "<table id='phonebookGridData' class='display' style='width:100%; font-family: Calibri, Segoe, Arial;'>";
+                vMT += " <thead>";
+                vMT += "  <tr>";
+                vMT += "   <th>Name</th>";
+                vMT += "   <th>Mail</th>";
+                vMT += "   <th>Business Phones</th>";
+                vMT += "   <th>Department</th>";
+                vMT += "   <th>Calendar</th>";
+                vMT += "   <th>Activity</th>";
+                vMT += "  </tr>";
+                vMT += " </thead>";
+                vMT += " <tbody>";
+
+                for(let i = 0; i < response.data.data.length; i++) {
+
+                    var vPresence = "";
+                    var vAcitivity = "";
+                    if (response.data.data[i].presence == "Unknown") {
+                        vPresence = "Unknown";
+                        vAcitivity = "Unknown";
+                    }
+                    if (response.data.data[i].presence.indexOf("/") != "-1") {
+                        vPresence = response.data.data[i].presence.substring(0, response.data.data[i].presence.indexOf("/"));
+                        vAcitivity = response.data.data[i].presence.substring(response.data.data[i].presence.indexOf("/") + 1)
+                    }
+                    var vPresenceColor = "#d7d7d7";
+                    if (vPresence == "Unknown") vPresenceColor = "#d7d7d7";
+                    if (vPresence == "Offline") vPresenceColor = "#595959";
+                    if (vPresence == "Available") vPresenceColor = "#53b730";
+                    if (vPresence == "Busy") vPresenceColor = "#c73639";
+                    if (vPresence == "DoNotDisturb") vPresenceColor = "#c73639";
+                    if (vPresence == "Away") vPresenceColor = "#e3a300";
+                    if (vPresence == "BeRightBack") vPresenceColor = "#e3a300";
+
+                    vMT += "  <tr align='left'> ";
+
+                    vMT += "   <td><div style=\"float: left; margin-left:5px; height: 15px; width: 15px; background-color: " + vPresenceColor + "; border-radius: 50%; display: inline-block;\"></div><div style=\"margin-top:-2px; margin-left:5px; float: left;\"><b>" + response.data.data[i].displayName + "</b></div></td>";
+
+                    if (response.data.data[i].mail != null) {
+	                    vMT += "   <td>" + response.data.data[i].mail + "</td>";
+                    }
+                    else {
+	                    vMT += "   <td></td>";
+                    }
+
+                    //vMT += "   <td><a href='javascript:parent.MakeTransfer(`" + response.data.data[i].businessPhones + "`);'>" + response.data.data[i].businessPhones + "</a></td>";
+                    vMT += "   <td><a href='javascript:sendPostMessage(`" + response.data.data[i].businessPhones + "`);'>" + response.data.data[i].businessPhones + "</a></td>";
+
+                    if (response.data.data[i].department != null) {
+	                    vMT += "   <td>" + response.data.data[i].department + "</td>";
+                    }
+                    else {
+	                    vMT += "   <td></td>";
+                    }
+
+                    const d = new Date();
+
+                    const yF = d.getFullYear();
+                    const mF = d.getMonth() + 1;
+                    const dF = d.getDate();
+
+                    const hF = d.getHours();
+                    const minF = d.getMinutes();
+
+                    const fromD = yF.toString().padStart(4, '0') + "-" + mF.toString().padStart(2, '0') + "-" + dF.toString().padStart(2, '0') + "T" + hF.toString().padStart(2, '0') + ":" + minF.toString().padStart(2, '0') + ":00";
+
+                    d.setHours(d.getHours() + 6);
+
+                    const yT = d.getFullYear();
+                    const mT = d.getMonth() + 1;
+                    const dT = d.getDate();
+
+                    const hT = d.getHours();
+                    const minT = d.getMinutes();
+
+                    const toD = yT.toString().padStart(4, '0') + "-" + mT.toString().padStart(2, '0') + "-" + dT.toString().padStart(2, '0') + "T" + hT.toString().padStart(2, '0') + ":" + minT.toString().padStart(2, '0') + ":00";
+
+
+                    var vCalendarBar = "<div title='Availabilty chart starts at " + fromD + " to " + toD + "'>";
+                    for (let j = 0; j < response.data.data[i].calendar.length; j++) {
+                        if(response.data.data[i].calendar.charAt(j) == '0') {
+                            vCalendarBar += "<div style=\"float: left; margin-left:0px; height: 15px; width: 3px; background-color:#53b730; display: inline-block;\"></div>"
+                        }
+                        if(response.data.data[i].calendar.charAt(j) == '1') {
+                            vCalendarBar += "<div style=\"float: left; margin-left:0px; height: 15px; width: 3px; background-color:#c73639; display: inline-block;\"></div>"
+                        }
+                        if(response.data.data[i].calendar.charAt(j) == '2') {
+                            vCalendarBar += "<div style=\"float: left; margin-left:0px; height: 15px; width: 3px; background-color:#c73639; display: inline-block;\"></div>"
+                        }
+                        if(response.data.data[i].calendar.charAt(j) == '3') {
+                            vCalendarBar += "<div style=\"float: left; margin-left:0px; height: 15px; width: 3px; background-color:#810f76; display: inline-block;\"></div>"
+                        }
+                        if(response.data.data[i].calendar.charAt(j) == '4') {
+                            vCalendarBar += "<div style=\"float: left; margin-left:0px; height: 15px; width: 3px; background-color:#c73639; display: inline-block;\"></div>"
+                        }
+                    }
+                    vCalendarBar += "</div>";
+
+                    vMT += "   <td>" + vCalendarBar + "</td>";
+                    vMT += "   <td>" + vAcitivity + "</td>";
+                    vMT += "  </tr>";
+
+                }
+
+                vMT += " </tbody>";
+                vMT += " <tfoot>";
+                vMT += "  <tr>";
+                vMT += "   <th>Name</th>";
+                vMT += "   <th>Mail</th>";
+                vMT += "   <th>Business Phones</th>";
+                vMT += "   <th>Department</th>";
+                vMT += "   <th>Calendar</th>";
+                vMT += "   <th>Activity</th>";
+                vMT += "  </tr>";
+                vMT += " </tfoot>";
+                vMT += "</table>";
+
+                document.getElementById("contentLoader").style.display = "none";
+                document.getElementById("phonebookTable").innerHTML = vMT;
+                var table = new DataTable('#phonebookGridData', { "dom": "ftp" });
+
+
+                /*
+                var vPhoneBookData = "";
+
+                for(let i = 0; i < response.data.data.length; i++) {
+  
+                    if (response.data.data[i].mail != null) {
+                        vPhoneBookData += "<b>" + response.data.data[i].displayName + "</b><br />";
+                        vPhoneBookData += response.data.data[i].mail + "<br />";
+                        vPhoneBookData += response.data.data[i].presence + "<br />";
+
+                        var vBusinessPhones = "";
+
+                        for(let j = 0; j < response.data.data[i].businessPhones.length; j++) {
+                            vBusinessPhones += response.data.data[i].businessPhones[j] + " ";
+                        }   
+                    
+                        if (vBusinessPhones != "") {
+                            vPhoneBookData += "Business phones: " + vBusinessPhones;
+                        }
+                        else {
+                            vPhoneBookData += "No business phones found.";
+                        }
+                        vPhoneBookData += "<br /><br />";
+                    }
+
+                }
+
+                document.getElementById("phonebookPanel").innerHTML = vPhoneBookData;
+                */
+            })
+
+        }
+	}
+
+</script>
+
+<body onload="getPhonebookData()">
+
+    <div id="contentLoader" style="display:visible;">
+        <center><img src="DoubleRing.gif" /></center>
+        <br />
+        <br />
+        Please wait, loading Teams users.
+    </div>    
+    
+    <div id="phonebookTable"></div>
+
+</body>
+</html>

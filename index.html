@@ -15,11 +15,15 @@
 </head>
 <body>
     <div class="row-container">
-        <div class="first-row">
+
+        <!--<div class="first-row">-->
+        <div>
 
             <button id="accept-call-button" type="button" style="float:left;"><img id="accept-call-button-image" src="hsgray.jpg"></button>
             &nbsp;
             <button id="hangup-call-button" type="button" style="float:left; margin-left:10px;"><img id="hangup-call-button-image" src="hshugray.jpg"></button>
+            &nbsp;
+            <button id="muteunmute-call-button" type="button" style="float:left; margin-left:10px;"><img id="muteunmute-call-button-image" src="mutegray.jpg"></button>
             &nbsp;
             
             <input id="transfer-target-phone" type="text" disabled="true" placeholder="Transfer target" />            
@@ -30,7 +34,7 @@
             <label id="connectedLabel" style="color: #13bb13; height: 40px; float:left; display: flex;
             align-items: center;">
                 Acquiring token, please wait...
-            </label>
+            </label> 
 
         </div>
        
@@ -38,8 +42,13 @@
         <iframe id="selvbetjeningfr" class="second-row" src="https://selvbetjening.nu/"></iframe>
         -->                    
 
-        <iframe id="selvbetjeningfr" class="second-row" src="https://acsstaticframewebanswer.z16.web.core.windows.net/Api/index.html"></iframe>
-    
+        <!--
+        <iframe id="selvbetjeningfr" class="second-row" src="https://taarnbyrcswebanswer.z6.web.core.windows.net/Api/index.html"></iframe>
+        -->
+
+        <br />
+        <label id="internalLabel" style="color: #2b322b; height: 40px; float:left; display: flex;
+        align-items: center;"></label>        
 
     </div>
 </body>
