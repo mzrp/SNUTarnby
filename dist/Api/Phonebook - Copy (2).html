@@ -4,7 +4,6 @@
 <title>Phonebook</title>
 
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-<link rel="stylesheet" href="../app.css"/>
 
 <style>
 	.dataTables_wrapper .dataTables_filter  {
@@ -25,67 +24,6 @@
         -webkit-transform: translate(-50%, -50%);
         transform: translate(-50%, -50%);
     }    
-
-    [calendar-title]:hover:after {
-        opacity: 1;
-        transition: all 0.05s ease 0.1s;
-        visibility: visible;
-    }
-    [calendar-title]:after {
-        content: attr(calendar-title);
-        background-color: #37811c;
-        color: #fff;
-        font-size: 120%;
-        margin-left: -50px;
-	    margin-top: 20px;
-        position: absolute;
-        white-space: nowrap;
-	    padding: 3px;
-        box-shadow: 1px 1px 3px #222222;
-        opacity: 0;
-        border: 1px solid #111111;
-        z-index: 99999;
-        visibility: hidden;
-    }
-    [calendar-title] {
-        position: relative;
-    }
-
-    #modal-background {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: white;
-            opacity: .50;
-            -webkit-opacity: .5;
-            -moz-opacity: .5;
-            filter: alpha(opacity=50);
-            z-index: 1000;
-        }
-
-        #modal-content {
-            background-color: white;
-            border-radius: 10px;
-            -webkit-border-radius: 10px;
-            -moz-border-radius: 10px;
-            box-shadow: 0 0 20px 0 #222;
-            -webkit-box-shadow: 0 0 20px 0 #222;
-            -moz-box-shadow: 0 0 20px 0 #222;
-            display: none;
-            height: 430px;
-            left: 50%;
-            margin-left: -200px;
-            margin-top: -215px;
-            padding: 10px;
-            position: fixed;
-            top: 50%;
-            width: 400px;
-            z-index: 1000;
-        }
-
 </style>
 
 <script type="text/javascript" language="javascript" src="https://code.jquery.com/jquery-3.7.0.js"></script>
@@ -94,17 +32,13 @@
 
 <script>
 
+$(document).ready(function() {    
+
     var vSearchedWord = "<NEWSEARCHALLOWED>";
     var allowNewSearchTimer;
 
     var tblPB;
-    //var tblPB = $('#phonebookGridData').DataTable();
-
-    $(document).ready(function() {    
-    
-        getPhonebookData();
-
-    });    
+    //var tblPB = $('#phonebookGridData').DataTable();    
 
     function sendPostMessage(pmsg) {
 
@@ -120,159 +54,8 @@
             console.error(error);
         }
 
-    }  
-
-    function goCancelKeyword() {
-        document.getElementById("modal-background").style.display = "none";
-        document.getElementById("modal-content").style.display = "none";
-    }        
-
-    async function getKeywords() {
-
-        const url = "https://taarnby-henven-gettoken.azurewebsites.net/getAllKeywords";
-
-        const config = {
-            headers: {
-                ContentType: `application/json`
-            }
-        }
-
-        axios.get(url, config).then(await function (response) {
-
-            var allKeywords = document.getElementById("keywordsTable");
-            for (i = allKeywords.options.length - 1; i >= 0 ; i--) {
-                allKeywords.remove(0);
-            }
-
-            var allKeywordsArray = response.data.split("@*!");
-
-            for(let i = 0; i < allKeywordsArray.length; i++) {
-
-                var vId = i.toString();
-                var vKeyword = allKeywordsArray[i];
-
-                if ((vId != "") && (vKeyword != "")) {
-
-                    var option = document.createElement("option");
-                    option.value = vId;
-                    option.text = vKeyword;
-                    allKeywords.add(option);
-
-                }
-            }
-
-        })
-
     }    
-
-    async function goModifyKeywords() {
-
-        try {
-
-            var userid = document.getElementById("UserId").value;
-            var usernote = document.getElementById("userNote").value;
-
-            if (usernote == "") usernote = "n/a";
-            if (usernote == "add note") usernote = "n/a";
-
-            var userkeywords = "";
-
-            var allKeywords = document.getElementById("keywordsTable");
-            let allKeywordsCol = allKeywords.selectedOptions;
-            for (let i = 0; i < allKeywordsCol.length; i++) {
-                if (userkeywords != "") userkeywords += ",";
-                userkeywords += allKeywordsCol[i].text;
-            }
-
-            if (userkeywords != "") {
-
-                const url = "https://taarnby-henven-gettoken.azurewebsites.net/updateUserKeywords?userkeywords=" + userkeywords + "&userid="+ userid + "&usernote=" + usernote;
-
-                const config = {
-                    headers: {
-                        ContentType: `application/json`
-                    }
-                }            
-                
-                axios.get(url, config).then(await function (response) {
-
-                    if (response.data == "Success") {
-
-                        var vKeywords = "<a href='javascript:goEditKeyword(`" + userid + "`, `" + userkeywords + "`, `" + usernote + "`);'>" + userkeywords + "</a>"; 
-                        var vNote = usernote;
-
-                        var cellKEYS = tblPB.cell('#link_' + userid);
-                        cellKEYS.data(vKeywords);
-
-                        var cellNOTE = tblPB.cell('#note_' + userid);
-                        cellNOTE.data(vNote);
-
-                        document.getElementById("modal-background").style.display = "none";
-                        document.getElementById("modal-content").style.display = "none";
-
-                        tblPB.draw();
-
-                    }
-
-                })
-
-            }
-
-        }
-        catch (errpr) {
-            console.log(error);
-        }
-    }
-
-    function goEditKeyword(userid, userkeywords, usernote) {
-
-        try {
-
-            // <div style=\"float: left; margin-left:5px; height: 15px; width: 15px; background-color: " + vPresenceColor + "; border-radius: 50%; display: inline-block;\"></div><div style=\"margin-top:-2px; margin-left:5px; float: left;\"><b>" + response.data.data[i].displayName + "</b></div>
-            var cellPRES = tblPB.cell('#presence_' + userid);
-            var userdisplayname = cellPRES.data().substring(cellPRES.data().indexOf("<b>") + 3);
-            userdisplayname = userdisplayname.substring(0, userdisplayname.indexOf("</b>"));
-
-            document.getElementById("UserId").value = userid;
-            document.getElementById("userNote").value = usernote;
-
-            var vAllUserKeywordsArray = userkeywords.split(",");
-            var allKeywords = document.getElementById("keywordsTable");
-
-            // deselect everything
-            if (allKeywords.options.length != null) {
-                for (i = 0; i < allKeywords.options.length; i++) {
-                    allKeywords.options[i].selected = '';                           
-                }   
-            }
-
-            for (let l = 0; l < vAllUserKeywordsArray.length; l++) {
-                if (vAllUserKeywordsArray[l] != "") {
-                    var vUserKeyword = vAllUserKeywordsArray[l];
-
-                    if (allKeywords.options.length != null) {
-                        for (i = 0; i < allKeywords.options.length; i++) {
-
-                            if (allKeywords.options[i].text == vUserKeyword) {
-                                allKeywords.options[i].selected = 'selected';
-                            }                            
-                        }   
-                    }
-                }
-
-            }        
-
-            document.getElementById("modal-background").style.display = "block";
-            document.getElementById("modal-content").style.display = "block";
-            document.getElementById("UserNameKeyword").innerHTML = userdisplayname;
-
-        }
-        catch (error) {
-            console.error(error);
-        }
-
-    }       
-
+	
     async function fillPhonebookPresences(allTeamsUsers) {
 
         const url = "https://taarnby-henven-gettoken.azurewebsites.net/getUsersPresences";
@@ -290,10 +73,10 @@
         }      
 
         const config = {
-	            headers: {
-		            ContentType: `application/json`
-	            }
-            }        
+            headers: {
+                ContentType: `application/json`
+            }
+        }        
 
         try {
             const resp = await axios.post(url, rawbodyload, config);					
@@ -328,7 +111,7 @@
                         var cellPRESNEW2 = cellPRES.data().substring(cellPRES.data().indexOf(" border-radius: 50%;"));
                         var cellPRESNEW1 = cellPRES.data().substring(0, cellPRES.data().indexOf(" border-radius: 50%;") - 8);
                         var cellPRESNEW = cellPRESNEW1 + vPresenceColor + ";" + cellPRESNEW2; 
-                        
+                
                         cellPRES.data(cellPRESNEW);
 
                         var cellACT = tblPB.cell('#activity_' + resp.data.result.data[i].id);
@@ -341,67 +124,12 @@
 
             }
         }
-		catch (error) {
-			console.log("fillPhonebookPresences error" + error);
-		}
-
-    }
-
-    async function fillPhonebookKeywords(allTeamsUsers) {
-
-        const url = "https://taarnby-henven-gettoken.azurewebsites.net/getUsersKeywords";
-
-        const queryString = window.location.search;
-        const urlParams = new URLSearchParams(queryString);
-
-        var vTeamsToken = urlParams.get('teamstoken');
-        var vTeamsUserId = urlParams.get('teamsuserid');
-
-        const rawbodyload = {
-            username: vTeamsUserId,
-            teamsToken: vTeamsToken,
-            teamsUsers: allTeamsUsers
-        }      
-
-        const config = {
-            headers: {
-                ContentType: `application/json`
-            }
-        }        
-
-        try {
-            const resp = await axios.post(url, rawbodyload, config);					
-            if (resp != undefined) {
-                console.log(resp);
-
-                if (resp.data.result.data != null) {
-
-                    for(let i = 0; i < resp.data.result.data.length; i++) {
-
-                        var vAddEditKeys = resp.data.result.data[i].keywords;
-                        if (vAddEditKeys == "") vAddEditKeys = "add";
-                        var vKeywords = "<a href='javascript:goEditKeyword(`" + resp.data.result.data[i].id + "`, `" + resp.data.result.data[i].keywords + "`, `" + resp.data.result.data[i].note + "`);'>" + vAddEditKeys + "</a>"; 
-                        var vNote = resp.data.result.data[i].note;
-
-                        var cellKEYS = tblPB.cell('#link_' + resp.data.result.data[i].id);
-                        cellKEYS.data(vKeywords);
-
-                        var cellNOTE = tblPB.cell('#note_' + resp.data.result.data[i].id);
-                        cellNOTE.data(vNote);
-
-                    }
-
-                    tblPB.draw();
-                }
-
-            }
-        }
         catch (error) {
-            console.log("fillPhonebookKeywords error" + error);
+            console.log("fillPhonebookPresences error" + error);
         }
 
     }    
-
+	
     async function getPhonebookData() {
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
@@ -412,7 +140,7 @@
             var TeamsToken = urlParams.get('teamstoken');
             var TeamsUserId = urlParams.get('teamsuserid');
 
-            const url = "https://taarnby-henven-gettoken.azurewebsites.net/getTeamsUsers?userId=" + TeamsUserId + "&actionToPerform=USERSONLY&teamsToken=" + TeamsToken;
+			const url = "https://taarnby-henven-gettoken.azurewebsites.net/getTeamsUsers?userId=" + TeamsUserId + "&actionToPerform=USERSONLY&teamsToken=" + TeamsToken;
             const config = {
 	            headers: {
 		            ContentType: `application/json`
@@ -478,7 +206,7 @@
 
                     // calendar
                     vMT += "   <td id=\"calendar_" + response.data.data[i].id + "\"></td>";
-
+                    
                     // activity
                     vMT += "   <td id=\"activity_" + response.data.data[i].id + "\" >" + vAcitivity + "</td>";
 
@@ -505,8 +233,6 @@
                 document.getElementById("phonebookTable").innerHTML = vMT;
                 tblPB = new DataTable('#phonebookGridData', { "dom": "ftp", "columnDefs": [ { "searchable": false, "targets": [4] } ] });
 
-                getKeywords();
-
                 tblPB.on( 'search.dt', async function () {
                     
                     var vFilterWord = tblPB.search();
@@ -532,7 +258,6 @@
 
                                 if (vAllUserIds != "") {
                                     await fillPhonebookPresences(vAllUserIds);
-                                    await fillPhonebookKeywords(vAllUserIds);
                                     clearTimeout(allowNewSearchTimer);
                                     allowNewSearchTimer = setTimeout(allowNewSearch, 500);
                                 }
@@ -548,15 +273,14 @@
 
         }
 	}
-
+	
     function allowNewSearch() {
         vSearchedWord = "<NEWSEARCHALLOWED>";
     }
 
+    $( document ).ready( getPhonebookData );
 
-
-
-
+});    
 </script>
 
 <body>
@@ -569,39 +293,6 @@
     </div>    
     
     <div id="phonebookTable"></div>
-
-    <div id="modal-background"></div>
-    <div id="modal-content">
-
-            <div style="position: absolute; left: 50%; top: 50%; width: 410px; height: 380px; margin-left: -190px; margin-top: -215px;">
-
-                <table style="width: 410px; height: 380px;" border="0">
-
-                    <tr>
-                        <td valign="top">
-                            <div id="UserNameKeyword" style="margin-top:10px;"></div>
-                            <select size="8" multiple id="keywordsTable" name="keywordsTable" style="margin-top:10px;padding: 7px 10px; line-height: 8px; width: 370px; font-size:20px;">
-                            </select>
-                            <div id="UserNoteLabel" style="margin-top:20px;">Note</div>
-                            <input type="text" id="userNote" value="" placeholder="add note" style="margin-top:10px; width: 347px;" />
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td valign="top">
-                            <button id="modal-close" style="width:180px; float:left;" type="button" onclick="goCancelKeyword();">Cancel</button>
-                            <button id="AddKeywordsB" style="width:180px; float:left; margin-left:10px;" name="AddKeywordsB" type="button" onclick="goModifyKeywords();">Modify Selected Keywords</button>
-                        </td>
-                    </tr>
-
-                </table>
-
-                <input type="hidden" id="UserId" name="UserId" value="" />
-
-            </div>
-
-    </div>
-
 
 </body>
 </html>

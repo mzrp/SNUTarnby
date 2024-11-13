@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <title>Keywords</title>
+
+    
+    <link rel="stylesheet" href="../app.css"/>
+    <script src="./app.js" defer></script> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.2.1/axios.min.js"></script>
+
+    <script>
+        
+            async function getKeywords() {
+
+                const url = "https://taarnby-henven-gettoken.azurewebsites.net/getAllKeywords";
+
+                const config = {
+                    headers: {
+                        ContentType: `application/json`
+                    }
+                }
+
+                axios.get(url, config).then(await function (response) {
+
+                    var allKeywords = document.getElementById("keywordsTable");
+                    for (i = allKeywords.options.length - 1; i >= 0 ; i--) {
+                        allKeywords.remove(0);
+                    }
+
+                    var allKeywordsArray = response.data.split("@*!");
+
+                    for(let i = 0; i < allKeywordsArray.length; i++) {
+
+                        var vId = i.toString();
+                        var vKeyword = allKeywordsArray[i];
+
+                        if ((vId != "") && (vKeyword != "")) {
+
+                            var option = document.createElement("option");
+                            option.value = vId;
+                            option.text = vKeyword;
+                            allKeywords.add(option);
+
+                        }
+                    }
+
+                })
+
+            }    
+
+        async function delSelectedKeyword() {
+
+            var x = document.getElementById("keywordsTable");
+            var keyText = x.options[x.selectedIndex].text;
+            var keyValue = x.options[x.selectedIndex].value;
+
+            var allKeywords = document.getElementById("keywordsTable");
+            var vAllKeywords = "";
+            for (i = 0; i < allKeywords.options.length; i++) {
+                if (allKeywords.options[i].text != keyText) {
+                    if (vAllKeywords != "") vAllKeywords += "@*!";
+                    vAllKeywords += allKeywords.options[i].text;                    
+                }
+            }
+
+            var vNewKeywords = vAllKeywords;
+            const url = "https://taarnby-henven-gettoken.azurewebsites.net/updateAllKeywords?newkeywords=" + vNewKeywords;
+
+            const config = {
+                headers: {
+                     ContentType: `application/json`
+                }
+            }
+
+            axios.get(url, config).then(await function (response) {
+
+                if (response.data == "Success") {
+
+                    getKeywords();
+
+                }
+
+            })            
+
+        }                   
+
+        async function saveNewKeyword() {
+
+            if (document.getElementById("newKey").value != null) {
+
+                var vNewKeywordToAdd = document.getElementById("newKey").value.replace(/,/g, '');
+
+                if (vNewKeywordToAdd != "") {
+                    
+                    var allKeywords = document.getElementById("keywordsTable");
+                    var vKeywordAlreadyExists = false;
+                    var vAllKeywords = "";
+                    for (i = 0; i < allKeywords.options.length; i++) {
+                        if (vAllKeywords != "") vAllKeywords += "@*!";
+                        vAllKeywords += allKeywords.options[i].text;
+                        if (allKeywords.options[i].text == vNewKeywordToAdd) {
+                            vKeywordAlreadyExists = true;
+                        }
+                    }
+
+                    if (vKeywordAlreadyExists == false) {
+                        
+                        var vNewKeywords = vAllKeywords + "@*!" + vNewKeywordToAdd;
+                        const url = "https://taarnby-henven-gettoken.azurewebsites.net/updateAllKeywords?newkeywords=" + vNewKeywords;
+
+                        const config = {
+                            headers: {
+                                ContentType: `application/json`
+                            }
+                        }
+
+                        axios.get(url, config).then(await function (response) {
+
+                            if (response.data == "Success") {
+
+                                getKeywords();
+
+                            }
+
+                        })
+                    }
+
+                }
+            }
+        }  
+
+    </script>
+</head>
+<body onload="getKeywords()">
+    <div class="row-container">
+
+        <div id="PhoneBookPanel">
+
+            <div style="clear:left;">
+                <button type="button" id="getKeyB" style="float:left; width:100px;" onclick="getKeywords();">Get Keywords</button>
+                <input type="text" id="newKey" style="width:200px; float:left; margin-left:4px;" />
+                <button type="button" id="newKeyB" style="float:left; margin-left:4px;" onclick="saveNewKeyword();">New</button>   
+                <button type="button" id="delKeyB" style="float:left; margin-left:4px;" onclick="delSelectedKeyword();">Del</button>        
+            </div>
+
+            <br /><br />
+
+            <div style="clear:left;">
+                <select name="keywordsTable" id="keywordsTable" size="12" style="margin-top:5px;padding: 7px 10px; line-height: 8px; width: 415px; font-size:20px;">
+                    <option>Please wait, reading keywords...</option>
+                </select>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -3,16 +3,77 @@ import soundfile from './TeamsRingTone.mp3';
 const { CallClient, VideoStreamRenderer, LocalVideoStream } = require('@azure/communication-calling');
 const { AzureCommunicationTokenCredential } = require('@azure/communication-common');
  
-const { AzureLogger, setLogLevel } = require("@azure/logger");
+const { AzureLogger, setLogLevel, createClientLogger } = require("@azure/logger");
 
 import { Features} from "@azure/communication-calling";
 import { apply } from 'file-loader';
 
+var JSZip = require("jszip");
+
 // Set the log level and output
+const _logger = createClientLogger('ACS');
+const _log = [];
+const _maxLogSize = 100000;
 setLogLevel('verbose');
 AzureLogger.log = (...args) => {
     console.log(...args);
+    try {
+        if (_log.length > _maxLogSize) {
+            _log.splice(0, _maxLogSize / 10);
+        }
+        if (Array.isArray(args)) {
+            for (let i = 0; i < args.length; i++) {
+                const s = args[i].toString();
+                _log.push(s);
+            }
+        }
+    } catch (error) {
+        console.log('AzureLogger.log error', error);
+    }	
 };
+
+function SaveLogEntry(logentry) {
+	console.log(logentry);
+    try {
+        if (_log.length > _maxLogSize) {
+            _log.splice(0, _maxLogSize / 10);
+        }        
+		if (Array.isArray(logentry)) {
+            for (let i = 0; i < logentry.length; i++) {
+                const s = logentry[i].toString();
+                _log.push("#RPCODELOG#: " + s);
+            }
+        }
+		else {
+			if (logentry != null && typeof logentry == 'object') {
+				_log.push("#RPCODELOG#: " + JSON.stringify(logentry));			
+			}
+			else {
+				_log.push("#RPCODELOG#: " + logentry);
+			}
+		}
+    } catch (error) {
+        console.log('AzureLogger.log error', error);
+    }	
+}
+
+function ACSDownloadLog() {
+    const a = document.createElement("a");
+    const data = _log.join('\r\n');
+    const blob = new Blob([data], { type: "octet/stream" });
+
+	var zip = new JSZip();
+	zip.file("log.txt", blob);
+	zip.generateAsync({ type:"blob", compression: "DEFLATE", compressionOptions: {level: 9} })
+		.then(function(content) {
+		    const url = window.URL.createObjectURL(content);
+    		a.href = url;
+    		a.download = 'log.zip';
+    		a.click();
+    		window.URL.revokeObjectURL(url);	
+	});
+
+}
 
 // UI objects
 let transferTargetPhone = document.getElementById('transfer-target-phone');
@@ -84,10 +145,10 @@ function sendPostMessage(pmsg) {
 		var parentWindow = window.parent;
 		parentWindow.postMessage(infoMsg, "*");
 
-		console.log(infoMsg);
+		SaveLogEntry(JSON.stringify(infoMsg));
 	}
 	catch (error) {
-	   console.error(error);
+		SaveLogEntry(error.message);
 	}
 
 }
@@ -95,11 +156,11 @@ function sendPostMessage(pmsg) {
 //const fetchTokenFromMyServerForUser = async function (username) {
 async function fetchTokenFromMyServerForUser(username) {
 
-	console.log("[REFRESHTOKEN] fetchTokenFromMyServerForUser arrived.");
+	SaveLogEntry("[REFRESHTOKEN] fetchTokenFromMyServerForUser arrived.");
 
 	var urlGetRefreshToken = "https://taarnby-henven-gettoken.azurewebsites.net/getTokenForTeamsUser?useraccount=" + TeamsUserAccount;
 
-	console.log("[REFRESHTOKEN] url: " + urlGetRefreshToken);
+	SaveLogEntry("[REFRESHTOKEN] url: " + urlGetRefreshToken);
 
 	// Exchange the Azure AD access token of the Teams User for a Communication Identity access token
 	try {
@@ -113,7 +174,7 @@ async function fetchTokenFromMyServerForUser(username) {
 		const newTokenResponse = await fetch(urlGetRefreshToken, requestTokenOptions);
 		const newTokenResponseJson = await newTokenResponse.json();
 
-		console.log("[REFRESHTOKEN] response ok, New token: " + newTokenResponseJson.result);	
+		SaveLogEntry("[REFRESHTOKEN] response ok, New token: " + newTokenResponseJson.result);	
 
 		if (newTokenResponseJson.result != null) {
 			if (newTokenResponseJson.result.indexOf("RefreshTokenError") == -1) {
@@ -132,10 +193,10 @@ async function fetchTokenFromMyServerForUser(username) {
 
 	}
 	catch (error) {
-		console.log("[REFRESHTOKEN] fetch failed: " + error);
+		SaveLogEntry("[REFRESHTOKEN] fetch failed: " + error.message);
 	}
 
-	console.log("[REFRESHTOKEN] fetch finished.");
+	SaveLogEntry("[REFRESHTOKEN] fetch finished.");
 }
 
 function goRefreshTokenNow(newRefreshedToken) {
@@ -144,34 +205,34 @@ function goRefreshTokenNow(newRefreshedToken) {
 
 		try {
 			ACSToken = newRefreshedToken;
-			console.log("[REFRESHTOKEN] refreshed token assigned.");	
+			SaveLogEntry("[REFRESHTOKEN] refreshed token assigned.");	
 		}
 		catch (errordisp) {
-			console.log("[REFRESHTOKEN] ISS1.");
+			SaveLogEntry("[REFRESHTOKEN] ISS1.");
 		}		
 
 		try {
 			tokenCredential.dispose();
 			callAgent.dispose();
-			console.log("[REFRESHTOKEN] disposing done.");	
+			SaveLogEntry("[REFRESHTOKEN] disposing done.");	
 		}
 		catch (errordisp) {
-			console.log("[REFRESHTOKEN] ISS2.");
+			SaveLogEntry("[REFRESHTOKEN] ISS2.");
 		}
 
 		try {
 			callClient = null;
 			deviceManager = null;
 			callAgent = null;
-			console.log("[REFRESHTOKEN] vars nulled.");		
+			SaveLogEntry("[REFRESHTOKEN] vars nulled.");		
 		}
 		catch (errordisp) {
-			console.log("[REFRESHTOKEN] ISS3.");
+			SaveLogEntry("[REFRESHTOKEN] ISS3.");
 		}
 		
 		CreateInstance(false);
 
-		console.log("[REFRESHTOKEN] New token activated.");
+		SaveLogEntry("[REFRESHTOKEN] New token activated.");
 
 		messageMsg = {type: "message", status: "RefreshToken", text: "Token Refreshed.", datetime: getFormattedDate()};
 		sendPostMessage(messageMsg);
@@ -198,7 +259,7 @@ async function CreateInstance(firsttime) {
 		*/
 
 		// Initiate call agent
-		callClient = new CallClient(); 
+		callClient = new CallClient({ _logger }); 
 		callAgent = await callClient.createCallAgent(tokenCredential);
 
 		// refresh token in 30 min
@@ -243,7 +304,7 @@ async function CreateInstance(firsttime) {
 					incomingCall = args.incomingCall;	
 
 					incomingCall.on('callEnded', args => {
-						console.log(args.callEndReason);
+						SaveLogEntry(args.callEndReason);
 
 						document.getElementById("accept-call-button-image").src="hsgray.jpg";
 						document.getElementById("hangup-call-button-image").src="hshugray.jpg";
@@ -267,8 +328,12 @@ async function CreateInstance(firsttime) {
 						infoMsg = {type: "message", status: "HangUp", callid: incomingCall.id, datetime: getFormattedDate()};
 						sendPostMessage(infoMsg);
 
+						// go set presence to busy/inacall
+						SetPresence("Available", "Available");	 
+
 						// stop ring tune
 						ringTone.pause();
+
 					});
 					
 					// Get incoming call ID
@@ -287,11 +352,25 @@ async function CreateInstance(firsttime) {
 							}
 						}
 					}
-					if (callToShow.indexOf(", ") == 0) {
-						callToShow = callToShow.replace(", ", "");
-					}						
+					if (callToShow != null) {
+						if (callToShow.indexOf(", ") == 0) {
+							callToShow = callToShow.replace(", ", "");
+						}						
+					}
+					else {
+						callToShow = callPhone;
+					}					
+					
 					// Get information about caller
 					callerInfo = callToShow;// + " (" + callKind + ")";
+
+					if (callerInfo == null) {
+						callerInfo = "Queue call";
+					}
+			
+					if (callerInfo == "") {
+						callerInfo = "Queue call";
+					}					
 	
 					document.getElementById("accept-call-button-image").src="hsgr.jpg";
 					document.getElementById("hangup-call-button-image").src="hshugray.jpg";
@@ -312,19 +391,19 @@ async function CreateInstance(firsttime) {
 						ringTone.play();
 					}
 					catch (error) {
-						console.log(error);
+						SaveLogEntry(error.message);
 					}
 
 					messageMsg = {type: "message", status: "Presented", callid: incomingCall.id, datetime: getFormattedDate()};
 					sendPostMessage(messageMsg);
 
             } catch (error) {
-                console.error(error);
+                SaveLogEntry(error.message);
             }
         });
         //initializeCallAgentButton.disabled = true;
     } catch(error) {
-        console.error(error);
+        SaveLogEntry(error.message);
     }
 }
 
@@ -394,14 +473,28 @@ async function goAcceptTheCall() {
 				}
 			}
 		}
-		if (callToShow.indexOf(", ") == 0) {
-			callToShow = callToShow.replace(", ", "");
+		if (callToShow != null) {
+			if (callToShow.indexOf(", ") == 0) {
+				callToShow = callToShow.replace(", ", "");
+			}						
 		}
+		else {
+			callToShow = callPhone;
+		}		
+
 		callerInfo = callToShow;// + " (" + callKind + ")";
+
+		if (callerInfo == null) {
+			callerInfo = "Queue call";
+		}
+
+		if (callerInfo == "") {
+			callerInfo = "Queue call";
+		}		
 
 		callTransferApi1 = call1.feature(Features.Transfer);
 		callTransferApi1.on('transferRequested', args => {
-			console.log(`Receive transfer request: ${args.targetParticipant}`);
+			SaveLogEntry(`Receive transfer request: ${args.targetParticipant}`);
 			args.accept();
 		});
 
@@ -434,10 +527,74 @@ async function goAcceptTheCall() {
 	
 		messageMsg = {type: "message", status: "PickedUp", caller: callerInfo, callid: incomingCall.id, datetime: getFormattedDate()};
 		sendPostMessage(messageMsg);
+
+		// go set presence to busy/inacall
+		SetPresence("Busy", "InACall");
 				
     } catch (error) {
-        console.error(error);
+        SaveLogEntry(error.message);
     }
+
+}
+
+async function SetPresence(vPresenceAvailability, vPresenceActivity) {
+
+	var myHeaders = new Headers();
+	myHeaders.append("Content-Type", "application/json");
+
+	var requestOptions = {
+		method: 'GET',
+		headers: myHeaders,
+		redirect: 'follow'
+	  };
+
+	var url = "https://taarnby-henven-gettoken.azurewebsites.net/getAppToken";	
+
+	var vAppToken = "n/a";
+	try {
+		const rawResponse = await fetch(url, requestOptions);
+		const content = await rawResponse.json();
+		vAppToken = content.result;
+		document.getElementById("connectedLabel").innerHTML = "Token acquired.";
+		infoMsg = {type: "info", message: "Token acquired.", datetime: getFormattedDate()};
+		sendPostMessage(infoMsg);			
+	}
+	catch (error) {
+		SaveLogEntry(error.message);
+		document.getElementById("connectedLabel").innerHTML = error;
+		infoMsg = {type: "info", message: error, datetime: getFormattedDate()};
+		sendPostMessage(infoMsg);
+
+		vAppToken = "n/a";
+	 }
+
+	if (vAppToken != undefined) {
+		if (vAppToken != "n/a") {
+
+			document.getElementById("connectedLabel").innerHTML = "Creating transfering group.";
+			infoMsg = {type: "info", message: "Creating transfering group.", datetime: getFormattedDate()};
+			sendPostMessage(infoMsg);
+
+			var url2 = "https://taarnby-henven-gettoken.azurewebsites.net/setPresence?appToken=" + vAppToken + "&userid=" + TeamsUserId + "&presAvailability=" + vPresenceAvailability + "&presActivity=" + vPresenceActivity;
+
+			var vThreadId = "n/a";
+			try {
+				const rawResponse2 = await fetch(url2, requestOptions);
+				const content2 = await rawResponse2.json();
+				vThreadId = content2.result;
+				document.getElementById("connectedLabel").innerHTML = "Presence updated to " + vPresenceAvailability + " (" + vPresenceActivity + ")";
+				infoMsg = {type: "info", message: "Presence updated to " + vPresenceAvailability + " (" + vPresenceActivity + ")", datetime: getFormattedDate()};
+				sendPostMessage(infoMsg);
+			}
+			catch (error) {
+				SaveLogEntry(error.message);
+				document.getElementById("connectedLabel").innerHTML = error;
+				infoMsg = {type: "info", message: error, datetime: getFormattedDate()};
+				sendPostMessage(infoMsg);
+				vThreadId = "n/a";
+			}
+		}
+	}
 
 }
 
@@ -492,6 +649,9 @@ async function goHangUp() {
 
 	 messageMsg = {type: "message", status: "HangUp", callid: incomingCall.id, datetime: getFormattedDate()};
 	 sendPostMessage(messageMsg);
+
+	 // go set presence to busy/inacall
+	 SetPresence("Available", "Available");	 
 }
 
 // End the current call
@@ -509,20 +669,24 @@ window.addEventListener("message", (e) => {
 				goMakeTransfer();
 			}
 			if (e.data.command == "PICKUP") {
-				console.log("[SELVBETMSG] PICKUP arrived.");
+				SaveLogEntry("[SELVBETMSG] PICKUP arrived.");
 				goAcceptTheCall();
 			}
 			if (e.data.command == "HANGUP") {
-				console.log("[SELVBETMSG] HANGUP arrived.");
+				SaveLogEntry("[SELVBETMSG] HANGUP arrived.");
 				goHangUp();
 			}
 			if (e.data.command == "MUTE") {
-				console.log("[SELVBETMSG] MUTE arrived.");
+				SaveLogEntry("[SELVBETMSG] MUTE arrived.");
 				goMuteCall();
 			}
 			if (e.data.command == "UNMUTE") {
-				console.log("[SELVBETMSG] UNMUTE arrived.");
+				SaveLogEntry("[SELVBETMSG] UNMUTE arrived.");
 				goUnmuteCall();
+			}
+			if (e.data.command == "ACSDOWNLOADLOG") {
+				SaveLogEntry("[SELVBETMSG] ACSDOWNLOADLOG arrived.");
+				ACSDownloadLog();
 			}
 		}
 	}
@@ -604,6 +768,9 @@ async function goMakeTransfer() {
 
 				messageMsg = {type: "message", status: "Transferred", callid: incomingCall.id, datetime: getFormattedDate()};
 				sendPostMessage(messageMsg);
+
+				// go set presence to busy/inacall
+				SetPresence("Available", "Available");				
 						   
 			}
 		});
@@ -631,7 +798,7 @@ async function goMakeTransfer() {
 			sendPostMessage(infoMsg);			
 		}
 		catch (error) {
-			console.error(error);
+			SaveLogEntry(error.message);
 			document.getElementById("connectedLabel").innerHTML = error;
 			infoMsg = {type: "info", message: error, datetime: getFormattedDate()};
 			sendPostMessage(infoMsg);
@@ -658,7 +825,7 @@ async function goMakeTransfer() {
 					sendPostMessage(infoMsg);
 				}
 				catch (error) {
-					console.error(error);
+					SaveLogEntry(error.message);
 					document.getElementById("connectedLabel").innerHTML = error;
 					infoMsg = {type: "info", message: error, datetime: getFormattedDate()};
 					sendPostMessage(infoMsg);
@@ -722,12 +889,15 @@ async function goMakeTransfer() {
 									document.getElementById("transfer-call-button-image").src="hstgray.jpg";
 									transferCallButton.disabled = true;
 									transferTargetPhone.disabled = true;
+
+									// go set presence to busy/inacall
+									SetPresence("Available", "Available");									
 										   
 								}
 							});
 						}
 						catch (error) {
-							console.error(error);
+							SaveLogEntry(error.message);
 							document.getElementById("connectedLabel").innerHTML = error;
 							infoMsg = {type: "info", message: error, datetime: getFormattedDate()};
 							sendPostMessage(infoMsg);

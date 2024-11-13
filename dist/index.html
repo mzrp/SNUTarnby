@@ -9,6 +9,23 @@
 
     <title>ACS Answering Client</title>
 
+    <script>
+        function keepAlive() {
+            var httpRequest = new XMLHttpRequest();
+            httpRequest.onreadystatechange = function() {
+                if (httpRequest.readyState == 4) {
+                    console.log("Keep alive2: " + httpRequest.url);
+                }
+            }
+            var vRKAF = "https://taarnbyrcswebanswer.z6.web.core.windows.net/keepalive.html?vrn=" + Math.random();
+            httpRequest.open('GET', vRKAF, true);
+            httpRequest.url = vRKAF;
+            httpRequest.send(null);
+            console.log("KeepAlive1: " + vRKAF);
+        }
+
+        setInterval(keepAlive, 600000);
+    </script>
     
     <link rel="stylesheet" href="./app.css"/>
     <script src="./app.js" defer></script> 
